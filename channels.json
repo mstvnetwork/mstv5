@@ -1,0 +1,27 @@
+[
+  {
+    "name": "MSTV India",
+    "url": "https://example.com/mstv-india/playlist.m3u8",
+    "type": "hls",
+    "logo_url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/mstv_logo_example.png"
+  },
+  {
+    "name": "Music Mania",
+    "url": "https://www.youtube.com/embed/yourmusicvideoid",
+    "type": "iframe",
+    "logo_url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/music_mania_logo.png"
+  },
+  {
+    "name": "Bollywood Beats",
+    "url": "https://example.com/bollywood/playlist.m3u8",
+    "type": "hls",
+    "logo_url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/bollywood_beats_logo.png"
+  },
+  {
+    "name": "News Hub",
+    "url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/news_logo.png",
+    "type": "hls",
+    "logo_url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/news_logo.png"
+  }
+  // ... add a "logo_url" for ALL your channels
+]
