@@ -23,5 +23,4 @@
     "type": "hls",
     "logo_url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/main/logo.img/news_logo.png"
   }
-  // ... add a "logo_url" for ALL your channels
 ]
