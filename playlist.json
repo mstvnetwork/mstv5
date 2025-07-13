@@ -1,17 +1,12 @@
-[
-  {
-    "title": "OK.RU Video",
-    "type": "embed",
-    "url": "https://ok.ru/videoembed/11529542502983"
-  },
-  {
-    "title": "HLS Movie (m3u8)",
+{
+  "channel1": {
+    "title": "My Movie Stream",
     "type": "m3u8",
-    "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+    "url": "https://example.com/myvideo1.m3u8"
   },
-  {
-    "title": "MP4 Clip",
+  "channel2": {
+    "title": "My MP4 Trailer",
     "type": "mp4",
-    "url": "https://www.w3schools.com/html/mov_bbb.mp4"
+    "url": "https://example.com/video.mp4"
   }
-]
+}
