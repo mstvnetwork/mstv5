@@ -249,9 +249,8 @@
                 document.querySelector(`li[data-channel-id="${channel.id}"]`).classList.add('active');
             }
 
-            // Fetch channels from the playlist.json file
-            // Adjust the path if your index.html is not in the root
-            fetch('playlist/playlist.json')
+            // Fetch channels from the mstv5/playlist.json file
+            fetch('mstv5/playlist.json') // THIS LINE IS UPDATED
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -282,7 +281,7 @@
                 })
                 .catch(error => {
                     console.error('Error fetching channels:', error);
-                    channelList.innerHTML = `<li>Error loading channels: ${error.message}. Please ensure 'playlist/playlist.json' exists and is accessible.</li>`;
+                    channelList.innerHTML = `<li>Error loading channels: ${error.message}. Please ensure 'mstv5/playlist.json' exists and is accessible.</li>`;
                 });
         });
     </script>
