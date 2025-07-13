@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My M3U8/MP4 TV Channel</title>
+    <title>Simple Looping Video Player</title>
     <style>
         /* Ensure HTML and Body take full viewport and prevent overall page scrolling */
         html, body {
@@ -33,16 +33,7 @@
             flex-shrink: 0; /* Prevent it from shrinking on smaller screens */
         }
 
-        .video-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width * 100) */
-            height: 0;
-            overflow: hidden; /* Crucial: This prevents the video player from spilling out */
-            background-color: black; /* Background for when video is loading */
-        }
-
-        /* NEW: Styling for the HTML5 <video> element */
+        /* Styling for the HTML5 <video> element */
         #videoPlayer {
             position: absolute;
             top: 0;
@@ -200,25 +191,21 @@
 
             <div class="scrolling-text-container">
                 <div class="scrolling-text" id="newsTicker">
-                    Welcome to MSTV NETWORK Live TV Channel! Now playing M3U8/MP4 streams. Stay tuned...</div>
+                    Playing videos in sequence, looping endlessly! Enjoy the show!</div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.33/moment-timezone-with-data.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
 
     <script>
         // --- GLOBAL STATE VARIABLES ---
-        const LAST_PLAYED_KEY = 'lastPlayedVideo';
+        const LAST_PLAYED_KEY = 'lastPlayedVideoIndex'; // Key for localStorage
         let videoPlayer; // Reference to the HTML5 video element
         let hlsInstance; // Reference to the HLS.js instance
         let saveInterval; // For saving last played position
-        let checkScheduleInterval; // For checking schedule changes
-        let currentScheduledProgram = null; // Stores the currently playing schedule block
-        let currentVideoIndexInProgram = 0; // Index within the current program's video_urls
-        let scheduleData = null; // Stores the loaded schedule from JSON
+        let videoUrls = []; // Stores the loaded video URLs
+        let currentVideoIndex = 0; // Current video index in the sequence
 
         const unmuteButton = document.getElementById('unmuteButton');
         const newsTicker = document.getElementById('newsTicker');
@@ -239,172 +226,56 @@
             }, 300); // Match CSS transition duration
         }
 
-        // --- FETCH SCHEDULE DATA ---
-        async function fetchSchedule() {
+        // --- FETCH VIDEO URLs ---
+        async function fetchVideoUrls() {
             try {
-                const response = await fetch('schedule.json');
+                // Changed from schedule.json to videos.json
+                const response = await fetch('videos.json'); 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                scheduleData = await response.json();
-                console.log('Schedule loaded:', scheduleData);
+                const data = await response.json();
+                videoUrls = data.video_urls; // Extract the video_urls array
+                
+                if (videoUrls.length === 0) {
+                    console.error("No video URLs found in videos.json.");
+                    newsTicker.textContent = "Error: No videos to play. Check videos.json.";
+                    newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
+                    displayThumbnail(); // Show a black screen if no videos
+                    return;
+                }
 
-                // Sort the schedule once after loading for reliable lookup
-                scheduleData.schedule.sort((a, b) => {
-                    const timeA = moment(a.start_time, 'HH:mm');
-                    const timeB = moment(b.start_time, 'HH:mm');
-                    return timeA.diff(timeB);
-                });
+                console.log('Video URLs loaded:', videoUrls);
 
-                // Initialize HTML5 video player and HLS.js
+                // Initialize HTML5 video player after URLs are loaded
                 initializeVideoPlayer();
             } catch (error) {
-                console.error('Could not load schedule.json:', error);
-                alert('Failed to load TV schedule. Please ensure schedule.json exists and is valid. Check console for details.');
-            }
-        }
-
-        // --- DETERMINE CURRENTLY SCHEDULED VIDEO FOR A 24/7 LOOP ---
-        function getScheduledVideo() {
-            if (!scheduleData || !scheduleData.schedule || scheduleData.schedule.length === 0) {
-                console.warn("No schedule data available.");
-                return null;
-            }
-
-            const now = moment().tz(scheduleData.timezone);
-            const sortedSchedule = scheduleData.schedule;
-
-            let currentProgram = null;
-            let currentProgramOriginalIndex = -1;
-            let nextProgramForTicker = null;
-
-            // 1. Find the program that 'now' is explicitly within
-            for (let i = 0; i < sortedSchedule.length; i++) {
-                const program = sortedSchedule[i];
-                let startTime = moment.tz(`${now.format('YYYY-MM-DD')} ${program.start_time}`, 'YYYY-MM-DD HH:mm', scheduleData.timezone);
-                let endTime = moment.tz(`${now.format('YYYY-MM-DD')} ${program.end_time}`, 'YYYY-MM-DD HH:mm', scheduleData.timezone);
-
-                // Handle overnight programs
-                if (endTime.isBefore(startTime)) {
-                    endTime.add(1, 'day');
-                }
-
-                if (now.isBetween(startTime, endTime, null, '[)')) {
-                    currentProgram = program;
-                    // Get original index using findIndex as indexOf might fail for complex objects
-                    currentProgramOriginalIndex = scheduleData.schedule.findIndex(p =>
-                        p.start_time === program.start_time &&
-                        p.end_time === program.end_time &&
-                        JSON.stringify(p.video_urls) === JSON.stringify(program.video_urls)
-                    );
-                    nextProgramForTicker = sortedSchedule[(i + 1) % sortedSchedule.length];
-                    break;
-                }
-            }
-
-            // 2. If no program was found by direct matching, default to the first program of the day for 24/7 loop
-            if (!currentProgram && sortedSchedule.length > 0) {
-                currentProgram = sortedSchedule[0];
-                currentProgramOriginalIndex = scheduleData.schedule.findIndex(p =>
-                    p.start_time === currentProgram.start_time &&
-                    p.end_time === currentProgram.end_time &&
-                    JSON.stringify(p.video_urls) === JSON.stringify(currentProgram.video_urls)
-                );
-                nextProgramForTicker = sortedSchedule[1 % sortedSchedule.length];
-            }
-
-            if (currentProgram) {
-                return {
-                    program: currentProgram,
-                    programIndex: currentProgramOriginalIndex,
-                    nextProgram: nextProgramForTicker
-                };
-            }
-
-            console.error("Could not determine any program to play for continuous loop. Schedule might be empty.");
-            return null;
-        }
-
-        // --- LOAD VIDEO BASED ON SCHEDULE ---
-        function loadScheduledVideo() {
-            const scheduled = getScheduledVideo();
-
-            if (!scheduled) {
-                console.error("Failed to determine scheduled program. Schedule might be empty or invalid.");
-                newsTicker.textContent = "Error: Schedule not available. Please check the schedule.json file.";
+                console.error('Could not load videos.json:', error);
+                newsTicker.textContent = 'Error loading videos. Check console and make sure "videos.json" exists.';
                 newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
+                displayThumbnail(); // Show a black screen on error
+                alert('Failed to load video list. Please ensure videos.json exists and is valid. Check console for details.');
+            }
+        }
+
+        // --- PLAY VIDEO IN SEQUENCE ---
+        function playVideoInSequence() {
+            if (videoUrls.length === 0) {
+                console.warn("No video URLs available to play.");
                 return;
             }
 
-            const program = scheduled.program;
-            const programIndex = scheduled.programIndex;
-            const nextProgram = scheduled.nextProgram;
+            // Loop back to the start if we reached the end of the list
+            if (currentVideoIndex >= videoUrls.length) {
+                currentVideoIndex = 0;
+            }
 
-            // Update news ticker and force animation restart
-            newsTicker.textContent = `Now Playing: ${program.content_type} | Next: ${nextProgram ? nextProgram.content_type + ' at ' + nextProgram.start_time : 'Back to Start'} (${scheduleData.timezone})`;
+            const videoUrlToPlay = videoUrls[currentVideoIndex];
+            console.log(`Playing video ${currentVideoIndex + 1}/${videoUrls.length}: ${videoUrlToPlay}`);
+            newsTicker.textContent = `Now Playing: Video ${currentVideoIndex + 1} | Next: Video ${(currentVideoIndex + 1) % videoUrls.length + 1}`;
             newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
 
-            // Check if we are already playing this exact program block
-            if (currentScheduledProgram &&
-                currentScheduledProgram.start_time === program.start_time &&
-                currentScheduledProgram.end_time === program.end_time &&
-                JSON.stringify(currentScheduledProgram.video_urls) === JSON.stringify(program.video_urls)) {
-
-                // Program is the same. Check if the current video is still playing or needs to be advanced.
-                if (!videoPlayer.ended && !videoPlayer.paused && videoPlayer.src) {
-                     // Check if the source URL matches the current expected video URL for the current index
-                    const expectedSrc = program.video_urls[currentVideoIndexInProgram];
-                    if (videoPlayer.src === expectedSrc) {
-                        // All good, current video is the one expected and playing. No need to reload.
-                        return;
-                    }
-                }
-                // If we reach here, it means the program is the same but the video needs to be loaded/reloaded
-                console.log(`Program ${program.content_type} is still active, but video needs re-evaluation.`);
-            }
-
-            // A new program has started, or the video needs to be loaded/reloaded
-            console.log(`Loading/re-evaluating program: ${program.content_type}`);
-            currentScheduledProgram = program;
-            let startTime = 0;
-            currentVideoIndexInProgram = 0; // Default to first video
-
-            const lastPlayed = JSON.parse(localStorage.getItem(LAST_PLAYED_KEY));
-            if (lastPlayed && lastPlayed.programIndex === programIndex) {
-                const lastPlayedVideoUrl = lastPlayed.videoUrl;
-                const currentProgramExpectedVideoUrl = program.video_urls[lastPlayed.videoIndexInProgram];
-
-                if (lastPlayedVideoUrl === currentProgramExpectedVideoUrl) {
-                    startTime = lastPlayed.time;
-                    currentVideoIndexInProgram = lastPlayed.videoIndexInProgram;
-                    console.log(`Resuming program "${program.content_type}" at video index ${currentVideoIndexInProgram} from ${startTime}s.`);
-                } else {
-                    console.log(`Last played video (${lastPlayedVideoUrl}) does not match current program's expected video (${currentProgramExpectedVideoUrl}). Starting program from beginning.`);
-                }
-            } else {
-                console.log(`Starting program "${program.content_type}" from beginning.`);
-            }
-
-            playVideoFromProgram(); // Call helper to play the determined video
-        }
-
-        // Helper function to play a video from the current program's video_urls list
-        function playVideoFromProgram() {
-            if (!currentScheduledProgram || currentScheduledProgram.video_urls.length === 0) {
-                console.error("No current program or no videos in program to play.");
-                displayThumbnail(); // Show black screen
-                return;
-            }
-
-            if (currentVideoIndexInProgram >= currentScheduledProgram.video_urls.length) {
-                // Looped through all videos in the program, reset to first.
-                console.log(`All videos in program ${currentScheduledProgram.content_type} played. Looping to first.`);
-                currentVideoIndexInProgram = 0;
-            }
-
-            const videoUrlToPlay = currentScheduledProgram.video_urls[currentVideoIndexInProgram];
-            console.log(`Attempting to play: ${videoUrlToPlay}`);
-            displayThumbnail(); // Show thumbnail/black screen while loading
+            displayThumbnail(); // Show black screen while loading
 
             if (hlsInstance) {
                 hlsInstance.destroy(); // Destroy previous HLS instance
@@ -417,37 +288,27 @@
                     hlsInstance.loadSource(videoUrlToPlay);
                     hlsInstance.attachMedia(videoPlayer);
                     hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                        videoPlayer.currentTime = 0; // HLS streams typically start from 0
                         videoPlayer.play().catch(e => console.error("Error playing HLS video:", e));
-                        hideThumbnail();
                     });
                     hlsInstance.on(Hls.Events.ERROR, onVideoError);
                 } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
                     // Native HLS support (Safari, iOS)
                     videoPlayer.src = videoUrlToPlay;
-                    videoPlayer.currentTime = 0;
                     videoPlayer.play().catch(e => console.error("Error playing native HLS video:", e));
-                    hideThumbnail();
                 } else {
                     console.error('HLS is not supported in this browser.');
                     onVideoError({ type: 'HLS_UNSUPPORTED', details: 'HLS not supported' });
                 }
             } else if (videoUrlToPlay.endsWith('.mp4')) {
                 videoPlayer.src = videoUrlToPlay;
-                videoPlayer.currentTime = 0; // For MP4, we can usually start from 0 or `startTime` from localStorage
                 videoPlayer.play().catch(e => console.error("Error playing MP4 video:", e));
-                hideThumbnail();
             } else {
-                console.error(`Unsupported video format or URL: ${videoUrlToPlay}. Skipping.`);
+                console.error(`Unsupported video format or URL: ${videoUrlToPlay}. Skipping to next.`);
                 onVideoError({ type: 'UNSUPPORTED_FORMAT', details: `Unsupported format: ${videoUrlToPlay}` });
             }
              
             // Mute/Unmute state persistence
-            if (unmuteButton.classList.contains('muted')) {
-                videoPlayer.muted = true;
-            } else {
-                videoPlayer.muted = false;
-            }
+            videoPlayer.muted = unmuteButton.classList.contains('muted');
         }
 
 
@@ -455,6 +316,18 @@
 
         function initializeVideoPlayer() {
             videoPlayer = document.getElementById('videoPlayer');
+
+            // Load last played state
+            const lastPlayed = JSON.parse(localStorage.getItem(LAST_PLAYED_KEY));
+            if (lastPlayed && videoUrls[lastPlayed.index] === lastPlayed.url) {
+                currentVideoIndex = lastPlayed.index;
+                videoPlayer.currentTime = lastPlayed.time;
+                console.log(`Resuming from video index ${currentVideoIndex} at ${videoPlayer.currentTime}s.`);
+            } else {
+                console.log("Starting from the beginning of the video list.");
+                currentVideoIndex = 0;
+                videoPlayer.currentTime = 0;
+            }
 
             // Add event listeners for HTML5 video events
             videoPlayer.addEventListener('ended', onVideoStateChange);
@@ -464,39 +337,27 @@
             videoPlayer.addEventListener('playing', hideThumbnail); // Hide thumbnail when actual playback starts
             videoPlayer.addEventListener('waiting', displayThumbnail); // Show thumbnail when buffering/waiting
 
-            // Initial load of the scheduled video
-            loadScheduledVideo();
+            // Start playing the first (or last-played) video
+            playVideoInSequence();
 
-            // Setup intervals
+            // Save current position every 5 seconds
             saveInterval = setInterval(() => {
-                if (videoPlayer && !videoPlayer.paused && !videoPlayer.ended && currentScheduledProgram) {
-                    const programIdx = scheduleData.schedule.findIndex(p =>
-                        p.start_time === currentScheduledProgram.start_time &&
-                        p.end_time === currentScheduledProgram.end_time &&
-                        JSON.stringify(p.video_urls) === JSON.stringify(currentScheduledProgram.video_urls)
-                    );
-
-                    if (programIdx !== -1 && currentVideoIndexInProgram < currentScheduledProgram.video_urls.length) {
-                        localStorage.setItem(LAST_PLAYED_KEY, JSON.stringify({
-                            programIndex: programIdx,
-                            videoIndexInProgram: currentVideoIndexInProgram,
-                            videoUrl: currentScheduledProgram.video_urls[currentVideoIndexInProgram], // Store the URL
-                            time: videoPlayer.currentTime
-                        }));
-                    }
+                if (videoPlayer && !videoPlayer.paused && !videoPlayer.ended && videoUrls.length > 0) {
+                    localStorage.setItem(LAST_PLAYED_KEY, JSON.stringify({
+                        index: currentVideoIndex,
+                        url: videoUrls[currentVideoIndex], // Store URL for integrity check
+                        time: videoPlayer.currentTime
+                    }));
                 }
             }, 5000);
-
-            checkScheduleInterval = setInterval(loadScheduledVideo, 60 * 1000); // Check schedule every minute
         }
 
         function onVideoStateChange(event) {
             if (event.type === 'ended') {
-                console.log(`Current video naturally ended (${videoPlayer.src}). Checking next video in program.`);
-                currentVideoIndexInProgram++; // Move to next video in program
-                playVideoFromProgram(); // Attempt to play the next video in the same program
+                console.log(`Current video naturally ended (${videoPlayer.src}). Moving to next video in sequence.`);
+                currentVideoIndex++; // Move to next video in sequence
+                playVideoInSequence(); // Play the next video
             }
-            // For 'play', 'pause' events, no specific action needed here beyond what `loadScheduledVideo` handles.
         }
 
         function onVideoError(event) {
@@ -508,40 +369,25 @@
                 const errorData = event.data;
                 console.error('HLS.js Error:', errorData);
                 if (errorData.fatal) {
-                    switch (errorData.type) {
-                        case Hls.ErrorTypes.NETWORK_ERROR:
-                            console.error('Fatal network error. Retrying next video in program...');
-                            break;
-                        case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.error('Fatal media error. Retrying next video in program...');
-                            break;
-                        default:
-                            console.error('Fatal HLS error. Destroying HLS instance and retrying next video.');
-                            hlsInstance.destroy();
-                            break;
-                    }
+                    // Attempt to destroy and recreate HLS instance or skip
+                    hlsInstance.destroy();
                 }
             } else if (event.target && event.target.error) {
                 // Handle native HTML5 video errors
                 const error = event.target.error;
                 switch (error.code) {
-                    case error.MEDIA_ERR_ABORTED:
-                        console.error("Video playback aborted."); break;
-                    case error.MEDIA_ERR_NETWORK:
-                        console.error("Video network error."); break;
-                    case error.MEDIA_ERR_DECODE:
-                        console.error("Video decode error."); break;
-                    case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-                        console.error("Video source not supported."); break;
-                    default:
-                        console.error("Unknown video error."); break;
+                    case error.MEDIA_ERR_ABORTED: console.error("Video playback aborted."); break;
+                    case error.MEDIA_ERR_NETWORK: console.error("Video network error."); break;
+                    case error.MEDIA_ERR_DECODE: console.error("Video decode error."); break;
+                    case error.MEDIA_ERR_SRC_NOT_SUPPORTED: console.error("Video source not supported."); break;
+                    default: console.error("Unknown video error."); break;
                 }
             }
 
-            // Attempt to skip to the next item in the program after an error
-            console.log('Attempting to skip to next item in program after error.');
-            currentVideoIndexInProgram++;
-            playVideoFromProgram(); // This will automatically handle looping if at end
+            // Attempt to skip to the next item after an error
+            console.log('Attempting to skip to next video in sequence after error.');
+            currentVideoIndex++;
+            playVideoInSequence(); // This will automatically handle looping if at end
         }
 
         // Unmute button functionality
@@ -560,14 +406,13 @@
         // Clear intervals and timeouts when the page is about to be unloaded
         window.addEventListener('beforeunload', () => {
             clearInterval(saveInterval);
-            clearInterval(checkScheduleInterval);
             if (hlsInstance) {
                 hlsInstance.destroy();
             }
         });
 
-        // --- START THE PROCESS: FETCH THE SCHEDULE FIRST ---
-        fetchSchedule();
+        // --- START THE PROCESS: FETCH THE VIDEO URLs FIRST ---
+        fetchVideoUrls();
     </script>
 
 </body>
