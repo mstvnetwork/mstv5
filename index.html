@@ -2,374 +2,573 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="description" content="MSTV Network offers a variety of live TV channels including music, movies, and more. Watch your favorite channels online for free.">
-    <meta name="keywords" content="live TV, MSTV Network, free TV, live channels, streaming, music, bollywood, saga music">
-    <meta name="robots" content="index, follow">
-    <meta property="og:title" content="MSTV Network">
-    <meta property="og:description" content="Stream live TV channels including music, movies, and more on MSTV Network.">
-    <meta property="og:image" content="https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png">
-    <meta property="og:url" content="https://mstvnet.netlify.app/">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="MSTV Network">
-    <meta name="twitter:description" content="Stream live TV channels including music, movies, and more on MSTV Network.">
-    <meta name="twitter:image" content="https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png">
-    <meta name="twitter:url" content="https://mstvnet.netlify.app/">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My M3U8/MP4 TV Channel</title>
+    <style>
+        /* Ensure HTML and Body take full viewport and prevent overall page scrolling */
+        html, body {
+            height: 100%; /* Make sure they fill the entire viewport height */
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent any scrollbars on the main document */
+        }
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": "MSTV Network",
-        "description": "Stream live TV channels including music, movies and more.",
-        "url": "https://yourwebsite.com",
-        "publisher": {
-            "@type": "Organization",
-            "name": "MSTV Network",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png"
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #1a1a1a; /* Dark background */
+            color: #f0f0f0; /* Light text */
+            display: flex;
+            justify-content: center; /* Horizontally center */
+            align-items: center; /* Vertically center the .tv-container */
+            flex-direction: column; /* Keep column direction for the layout */
+        }
+
+        .tv-container {
+            width: 90%; /* Adjust as needed */
+            max-width: 1280px; /* Max width for large screens, e.g., 720p or 1080p aspect */
+            border-radius: 10px;
+            overflow: hidden; /* Crucial for hiding parts of the scrolling text outside the container */
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background-color: #2a2a2a;
+            flex-shrink: 0; /* Prevent it from shrinking on smaller screens */
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width * 100) */
+            height: 0;
+            overflow: hidden; /* Crucial: This prevents the video player from spilling out */
+            background-color: black; /* Background for when video is loading */
+        }
+
+        /* NEW: Styling for the HTML5 <video> element */
+        #videoPlayer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures video covers the entire player area */
+            background-color: black; /* Default background for player */
+        }
+
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10; /* Place it above the video */
+            pointer-events: auto; /* It will receive pointer events */
+        }
+
+        /* Thumbnail Placeholder Styling - Now just a black screen for loading/errors */
+        .video-thumbnail-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000; /* Black background */
+            background-size: contain; 
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 12; /* Above video, below overlay/unmute button */
+            display: none; /* Hidden by default */
+            transition: opacity 0.3s ease; /* Smooth fade in/out */
+            opacity: 0;
+        }
+
+        /* Custom Unmute Button */
+        .unmute-button {
+            position: absolute;
+            top: 20px; /* Distance from the top */
+            right: 20px; /* Distance from the right */
+            z-index: 20; /* Place it above the overlay and video */
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            padding: 15px; /* Adjust padding as needed */
+            border-radius: 50%; /* Make it circular */
+            cursor: pointer;
+            font-size: 4.5em; /* ICON SIZE SET TO 4.5em */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease, opacity 0.3s ease;
+            opacity: 1; /* Default visible state */
+        }
+
+        .unmute-button:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .unmute-button .mute-icon { display: none; }
+        .unmute-button.muted .mute-icon { display: inline-block; }
+        .unmute-button.muted .unmute-icon { display: none; }
+        .unmute-button:not(.muted) .mute-icon { display: none; }
+        .unmute-button:not(.muted) .unmute-icon { display: inline-block; }
+
+        /* Scrolling Text Container */
+        .scrolling-text-container {
+            position: absolute; /* Position relative to .video-container */
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px; /* Height of the ticker */
+            background-color: red; /* Red background */
+            overflow: hidden; /* Hide text outside this band */
+            z-index: 15; /* Above video, below unmute button */
+            display: flex;
+            align-items: center; /* Vertically center the text */
+            white-space: nowrap; /* Prevent text from wrapping */
+            box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow above ticker */
+        }
+
+        .scrolling-text {
+            color: white; /* White text */
+            font-size: 1.2em; /* Adjust font size */
+            font-weight: bold;
+            padding-left: 100%; /* Start text off-screen to the right */
+            animation: scroll-left 40s linear infinite; /* Animation duration and loop */
+        }
+
+        /* Keyframe animation for scrolling */
+        @keyframes scroll-left {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-100%); } /* Scrolls its own width left */
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .tv-container {
+                width: 95%;
+            }
+
+            .unmute-button {
+                top: 10px;
+                right: 10px;
+                padding: 10px;
+                font-size: 3.0em; /* Adjusted for smaller screens */
+            }
+
+            .scrolling-text-container {
+                height: 30px; /* Smaller height on smaller screens */
+            }
+
+            .scrolling-text {
+                font-size: 1em;
+                animation-duration: 30s; /* Faster scroll on smaller screens */
             }
         }
-    }
-    </script>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6MHRH7TE5Y"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){ dataLayer.push(arguments); }
-      gtag('js', new Date());
-      gtag('config', 'G-6MHRH7TE5Y');
-    </script>
-    <title>MSTV Network - International TV</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-</head>
 
-  <style>
-    /* ONEZOO.NET INSPIRED STYLES */
+        @media (max-width: 480px) {
+            .tv-container {
+                width: 100%;
+                border-radius: 0;
+            }
+            .unmute-button {
+                top: 5px;
+                right: 5px;
+                padding: 8px;
+                font-size: 2.0em; /* Adjusted for very small screens */
+            }
 
-    :root {
-        --onezoo-dark-bg: #1A1C1E;
-        --onezoo-card-bg: #2C2F33;
-        --onezoo-text-light: #E0E0E0;
-        --onezoo-text-dark: #A0A0A0;
-        --onezoo-accent-blue: #007BFF; /* A subtle blue for highlights if needed */
-        --onezoo-border-grey: rgba(255, 255, 255, 0.08);
-    }
+            .scrolling-text-container {
+                height: 25px;
+            }
 
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Poppins', sans-serif;
-      color: var(--onezoo-text-light);
-      background: var(--onezoo-dark-bg);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Header */
-    .site-header {
-        background-color: var(--onezoo-dark-bg);
-        color: var(--onezoo-text-light);
-        padding: 15px 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        position: sticky;
-        top: 0;
-        z-index: 1000; /* Ensure it stays on top */
-    }
-
-    .site-logo {
-        font-size: 1.8em;
-        font-weight: 700;
-        color: #FFFFFF; /* White for the logo */
-        text-decoration: none;
-        letter-spacing: 1px;
-    }
-
-    .header-controls {
-        display: flex;
-        align-items: center;
-        gap: 25px; /* Space between icons/search */
-    }
-
-    .search-bar {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-
-    .search-bar input {
-        background-color: var(--onezoo-card-bg); /* Darker input background */
-        border: none;
-        border-radius: 5px;
-        padding: 8px 12px 8px 35px; /* Left padding for icon */
-        color: var(--onezoo-text-light);
-        font-size: 1em;
-        width: 180px; /* Default width */
-        transition: width 0.3s ease;
-    }
-
-    .search-bar input::placeholder {
-        color: var(--onezoo-text-dark);
-    }
-
-    .search-bar .search-icon {
-        position: absolute;
-        left: 12px;
-        color: var(--onezoo-text-dark);
-        pointer-events: none; /* Allows click through to input */
-    }
-
-    .header-icon {
-        font-size: 1.4em;
-        color: var(--onezoo-text-dark);
-        cursor: pointer;
-        transition: color 0.3s ease;
-    }
-
-    .header-icon:hover {
-        color: var(--onezoo-text-light);
-    }
-
-    /* Main Content Area */
-    main {
-        flex-grow: 1;
-        padding: 40px 20px; /* Padding for the main content */
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
-    .page-title {
-        font-size: 2.5em;
-        font-weight: 700;
-        color: #FFFFFF;
-        margin-bottom: 40px;
-        text-align: left; /* Left align title like OneZoo */
-    }
-
-    /* Channel Grid */
-    .channel-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); /* Responsive grid */
-      gap: 20px; /* Space between channel cards */
-      justify-items: center; /* Center items in their grid areas */
-    }
-
-    .channel-card {
-      background: var(--onezoo-card-bg); /* Card background */
-      border-radius: 8px; /* Slightly less rounded than previous, more like OneZoo */
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4); /* Subtle shadow */
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; /* Smooth transition for hover */
-      cursor: pointer;
-      text-decoration: none;
-      color: var(--onezoo-text-light);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      max-width: 250px;
-      border: 1px solid transparent; /* Transparent border for hover effect */
-    }
-
-    .channel-card:hover {
-      transform: translateY(-5px); /* Lift effect on hover */
-      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.6); /* Enhanced shadow */
-      border-color: var(--onezoo-accent-blue); /* Subtle blue border on hover */
-    }
-
-    .channel-card-image {
-      width: 100%;
-      height: 120px; /* Fixed height for consistent logo display */
-      object-fit: contain; /* Ensure logo fits without cropping */
-      padding: 10px; /* Padding around the logo */
-      background-color: var(--onezoo-dark-bg); /* Background for the logo area */
-      border-bottom: 1px solid var(--onezoo-border-grey); /* Subtle separator */
-      display: block; /* Ensure it doesn't leave gaps */
-    }
-
-    .channel-card-name {
-      margin-top: 15px;
-      font-size: 1.05em; /* Slightly smaller font */
-      font-weight: 500;
-      text-align: center;
-      padding: 0 10px 15px; /* Padding for channel name and bottom space */
-      color: var(--onezoo-text-light);
-      line-height: 1.3;
-    }
-
-    /* Footer */
-    footer {
-      background: var(--onezoo-dark-bg);
-      color: var(--onezoo-text-dark);
-      padding: 30px 20px;
-      text-align: center;
-      border-top: 1px solid var(--onezoo-border-grey);
-      margin-top: 60px; /* Space above footer */
-    }
-
-    .footer-content {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .footer-content p {
-      font-size: 0.85em;
-      margin: 5px 0;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .site-header {
-            padding: 10px 15px;
+            .scrolling-text {
+                font-size: 0.9em;
+                animation-duration: 25s;
+            }
         }
-        .site-logo {
-            font-size: 1.5em;
-        }
-        .header-controls {
-            gap: 15px;
-        }
-        .search-bar input {
-            width: 120px; /* Smaller input on mobile */
-            padding-left: 30px;
-        }
-        .search-bar .search-icon {
-            left: 8px;
-        }
-        .header-icon {
-            font-size: 1.2em;
-        }
-        main {
-            padding: 30px 15px;
-        }
-        .page-title {
-            font-size: 2em;
-            margin-bottom: 30px;
-        }
-        .channel-grid {
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 15px;
-        }
-        .channel-card-image {
-            height: 90px;
-            padding: 8px;
-        }
-        .channel-card-name {
-            font-size: 0.9em;
-            padding: 0 8px 10px;
-        }
-        footer {
-            padding: 20px 15px;
-        }
-    }
-
-    @media (max-width: 480px) {
-        .site-header {
-            flex-wrap: wrap; /* Allow header items to wrap */
-            justify-content: center;
-            gap: 10px;
-        }
-        .site-logo {
-            flex-basis: 100%; /* Logo takes full width */
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .header-controls {
-            justify-content: center;
-            width: 100%;
-        }
-        .search-bar input {
-            width: calc(100% - 60px); /* Full width minus icon padding */
-        }
-    }
-  </style>
+    </style>
 </head>
 <body>
-  <header class="site-header">
-    <a href="#" class="site-logo">MSTV NETWORK</a>
-    <div class="header-controls">
-      <div class="search-bar">
-        <i class="fas fa-search search-icon"></i>
-        <input type="text" placeholder="Search...">
-      </div>
-      <i class="fas fa-bars header-icon"></i>
+
+    <div class="tv-container">
+        <div class="video-container">
+            <video id="videoPlayer" playsinline autoplay muted></video> 
+            <div class="video-overlay"></div>
+            <div class="video-thumbnail-placeholder" id="videoThumbnail"></div> 
+            <button id="unmuteButton" class="unmute-button muted">
+                <span class="mute-icon">🔇</span>
+                <span class="unmute-icon">🔊</span>
+            </button>
+
+            <div class="scrolling-text-container">
+                <div class="scrolling-text" id="newsTicker">
+                    Welcome to MSTV NETWORK Live TV Channel! Now playing M3U8/MP4 streams. Stay tuned...</div>
+            </div>
+        </div>
     </div>
-  </header>
 
-  <main>
-    <h1 class="page-title">International TV</h1>
-    <div class="channel-grid" id="channel-grid">
-      </div>
-  </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.33/moment-timezone-with-data.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
 
-  <footer>
-    <div class="footer-content">
-      <p>&copy; 2025 MSTV INDIA. All rights reserved.</p>
-      <p>Disclaimer: MSTV provides access to publicly available channels. We are not responsible for external content.</p>
-    </div>
-  </footer>
+    <script>
+        // --- GLOBAL STATE VARIABLES ---
+        const LAST_PLAYED_KEY = 'lastPlayedVideo';
+        let videoPlayer; // Reference to the HTML5 video element
+        let hlsInstance; // Reference to the HLS.js instance
+        let saveInterval; // For saving last played position
+        let checkScheduleInterval; // For checking schedule changes
+        let currentScheduledProgram = null; // Stores the currently playing schedule block
+        let currentVideoIndexInProgram = 0; // Index within the current program's video_urls
+        let scheduleData = null; // Stores the loaded schedule from JSON
 
-  <script>
-    const channelGrid = document.getElementById('channel-grid');
-    let channelsData = [];
-    let lastKnownJsonContent = null;
+        const unmuteButton = document.getElementById('unmuteButton');
+        const newsTicker = document.getElementById('newsTicker');
+        const videoThumbnail = document.getElementById('videoThumbnail');
 
-    async function fetchChannelsJson() {
-      try {
-        const response = await fetch('channels.json?t=' + Date.now());
-        if (!response.ok) throw new Error('Fetch failed');
-        const json = await response.json();
-        const jsonString = JSON.stringify(json);
-
-        if (lastKnownJsonContent !== jsonString) {
-          lastKnownJsonContent = jsonString;
-          channelsData = json;
-          renderChannelCards();
+        // Function to display the thumbnail (now a simple black screen)
+        function displayThumbnail() {
+            videoThumbnail.style.display = 'block';
+            videoThumbnail.offsetHeight; // Trigger reflow for transition
+            videoThumbnail.style.opacity = '1';
         }
-      } catch (e) {
-        console.error('Error fetching channels.json:', e);
-        channelGrid.innerHTML = '<p style="color: red; text-align: center; padding: 50px 0;">Error loading channels. Please try again later.</p>';
-      }
-    }
 
-    function renderChannelCards() {
-      channelGrid.innerHTML = ''; // Clear existing cards
-      if (channelsData.length === 0) {
-        channelGrid.innerHTML = '<p style="color: var(--onezoo-text-dark); text-align: center; padding: 50px 0;">No channels available.</p>';
-        return;
-      }
+        // Function to hide the thumbnail
+        function hideThumbnail() {
+            videoThumbnail.style.opacity = '0';
+            setTimeout(() => {
+                videoThumbnail.style.display = 'none';
+            }, 300); // Match CSS transition duration
+        }
 
-      channelsData.forEach(channel => {
-        const card = document.createElement('a');
-        card.href = `player.html?url=${encodeURIComponent(channel.url)}&type=${encodeURIComponent(channel.type)}&name=${encodeURIComponent(channel.name)}`;
-        card.target = '_blank'; // Open in a new tab/window
-        card.classList.add('channel-card');
+        // --- FETCH SCHEDULE DATA ---
+        async function fetchSchedule() {
+            try {
+                const response = await fetch('schedule.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                scheduleData = await response.json();
+                console.log('Schedule loaded:', scheduleData);
 
-        const img = document.createElement('img');
-        img.classList.add('channel-card-image');
-        img.src = channel.logo_url || 'https://via.placeholder.com/180x120?text=No+Logo'; // Use logo_url or a placeholder
-        img.alt = `${channel.name} Logo`;
-        img.onerror = function() { this.src = 'https://via.placeholder.com/180x120?text=Error+Loading'; }; // Fallback if logo fails
+                // Sort the schedule once after loading for reliable lookup
+                scheduleData.schedule.sort((a, b) => {
+                    const timeA = moment(a.start_time, 'HH:mm');
+                    const timeB = moment(b.start_time, 'HH:mm');
+                    return timeA.diff(timeB);
+                });
 
-        const p = document.createElement('p');
-        p.classList.add('channel-card-name');
-        p.textContent = channel.name;
+                // Initialize HTML5 video player and HLS.js
+                initializeVideoPlayer();
+            } catch (error) {
+                console.error('Could not load schedule.json:', error);
+                alert('Failed to load TV schedule. Please ensure schedule.json exists and is valid. Check console for details.');
+            }
+        }
 
-        card.appendChild(img);
-        card.appendChild(p);
+        // --- DETERMINE CURRENTLY SCHEDULED VIDEO FOR A 24/7 LOOP ---
+        function getScheduledVideo() {
+            if (!scheduleData || !scheduleData.schedule || scheduleData.schedule.length === 0) {
+                console.warn("No schedule data available.");
+                return null;
+            }
 
-        channelGrid.appendChild(card);
-      });
-    }
+            const now = moment().tz(scheduleData.timezone);
+            const sortedSchedule = scheduleData.schedule;
 
-    fetchChannelsJson();
-    setInterval(fetchChannelsJson, 5000);
-  </script>
+            let currentProgram = null;
+            let currentProgramOriginalIndex = -1;
+            let nextProgramForTicker = null;
+
+            // 1. Find the program that 'now' is explicitly within
+            for (let i = 0; i < sortedSchedule.length; i++) {
+                const program = sortedSchedule[i];
+                let startTime = moment.tz(`${now.format('YYYY-MM-DD')} ${program.start_time}`, 'YYYY-MM-DD HH:mm', scheduleData.timezone);
+                let endTime = moment.tz(`${now.format('YYYY-MM-DD')} ${program.end_time}`, 'YYYY-MM-DD HH:mm', scheduleData.timezone);
+
+                // Handle overnight programs
+                if (endTime.isBefore(startTime)) {
+                    endTime.add(1, 'day');
+                }
+
+                if (now.isBetween(startTime, endTime, null, '[)')) {
+                    currentProgram = program;
+                    // Get original index using findIndex as indexOf might fail for complex objects
+                    currentProgramOriginalIndex = scheduleData.schedule.findIndex(p =>
+                        p.start_time === program.start_time &&
+                        p.end_time === program.end_time &&
+                        JSON.stringify(p.video_urls) === JSON.stringify(program.video_urls)
+                    );
+                    nextProgramForTicker = sortedSchedule[(i + 1) % sortedSchedule.length];
+                    break;
+                }
+            }
+
+            // 2. If no program was found by direct matching, default to the first program of the day for 24/7 loop
+            if (!currentProgram && sortedSchedule.length > 0) {
+                currentProgram = sortedSchedule[0];
+                currentProgramOriginalIndex = scheduleData.schedule.findIndex(p =>
+                    p.start_time === currentProgram.start_time &&
+                    p.end_time === currentProgram.end_time &&
+                    JSON.stringify(p.video_urls) === JSON.stringify(currentProgram.video_urls)
+                );
+                nextProgramForTicker = sortedSchedule[1 % sortedSchedule.length];
+            }
+
+            if (currentProgram) {
+                return {
+                    program: currentProgram,
+                    programIndex: currentProgramOriginalIndex,
+                    nextProgram: nextProgramForTicker
+                };
+            }
+
+            console.error("Could not determine any program to play for continuous loop. Schedule might be empty.");
+            return null;
+        }
+
+        // --- LOAD VIDEO BASED ON SCHEDULE ---
+        function loadScheduledVideo() {
+            const scheduled = getScheduledVideo();
+
+            if (!scheduled) {
+                console.error("Failed to determine scheduled program. Schedule might be empty or invalid.");
+                newsTicker.textContent = "Error: Schedule not available. Please check the schedule.json file.";
+                newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
+                return;
+            }
+
+            const program = scheduled.program;
+            const programIndex = scheduled.programIndex;
+            const nextProgram = scheduled.nextProgram;
+
+            // Update news ticker and force animation restart
+            newsTicker.textContent = `Now Playing: ${program.content_type} | Next: ${nextProgram ? nextProgram.content_type + ' at ' + nextProgram.start_time : 'Back to Start'} (${scheduleData.timezone})`;
+            newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
+
+            // Check if we are already playing this exact program block
+            if (currentScheduledProgram &&
+                currentScheduledProgram.start_time === program.start_time &&
+                currentScheduledProgram.end_time === program.end_time &&
+                JSON.stringify(currentScheduledProgram.video_urls) === JSON.stringify(program.video_urls)) {
+
+                // Program is the same. Check if the current video is still playing or needs to be advanced.
+                if (!videoPlayer.ended && !videoPlayer.paused && videoPlayer.src) {
+                     // Check if the source URL matches the current expected video URL for the current index
+                    const expectedSrc = program.video_urls[currentVideoIndexInProgram];
+                    if (videoPlayer.src === expectedSrc) {
+                        // All good, current video is the one expected and playing. No need to reload.
+                        return;
+                    }
+                }
+                // If we reach here, it means the program is the same but the video needs to be loaded/reloaded
+                console.log(`Program ${program.content_type} is still active, but video needs re-evaluation.`);
+            }
+
+            // A new program has started, or the video needs to be loaded/reloaded
+            console.log(`Loading/re-evaluating program: ${program.content_type}`);
+            currentScheduledProgram = program;
+            let startTime = 0;
+            currentVideoIndexInProgram = 0; // Default to first video
+
+            const lastPlayed = JSON.parse(localStorage.getItem(LAST_PLAYED_KEY));
+            if (lastPlayed && lastPlayed.programIndex === programIndex) {
+                const lastPlayedVideoUrl = lastPlayed.videoUrl;
+                const currentProgramExpectedVideoUrl = program.video_urls[lastPlayed.videoIndexInProgram];
+
+                if (lastPlayedVideoUrl === currentProgramExpectedVideoUrl) {
+                    startTime = lastPlayed.time;
+                    currentVideoIndexInProgram = lastPlayed.videoIndexInProgram;
+                    console.log(`Resuming program "${program.content_type}" at video index ${currentVideoIndexInProgram} from ${startTime}s.`);
+                } else {
+                    console.log(`Last played video (${lastPlayedVideoUrl}) does not match current program's expected video (${currentProgramExpectedVideoUrl}). Starting program from beginning.`);
+                }
+            } else {
+                console.log(`Starting program "${program.content_type}" from beginning.`);
+            }
+
+            playVideoFromProgram(); // Call helper to play the determined video
+        }
+
+        // Helper function to play a video from the current program's video_urls list
+        function playVideoFromProgram() {
+            if (!currentScheduledProgram || currentScheduledProgram.video_urls.length === 0) {
+                console.error("No current program or no videos in program to play.");
+                displayThumbnail(); // Show black screen
+                return;
+            }
+
+            if (currentVideoIndexInProgram >= currentScheduledProgram.video_urls.length) {
+                // Looped through all videos in the program, reset to first.
+                console.log(`All videos in program ${currentScheduledProgram.content_type} played. Looping to first.`);
+                currentVideoIndexInProgram = 0;
+            }
+
+            const videoUrlToPlay = currentScheduledProgram.video_urls[currentVideoIndexInProgram];
+            console.log(`Attempting to play: ${videoUrlToPlay}`);
+            displayThumbnail(); // Show thumbnail/black screen while loading
+
+            if (hlsInstance) {
+                hlsInstance.destroy(); // Destroy previous HLS instance
+                hlsInstance = null;
+            }
+
+            if (videoUrlToPlay.endsWith('.m3u8')) {
+                if (Hls.isSupported()) {
+                    hlsInstance = new Hls();
+                    hlsInstance.loadSource(videoUrlToPlay);
+                    hlsInstance.attachMedia(videoPlayer);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                        videoPlayer.currentTime = 0; // HLS streams typically start from 0
+                        videoPlayer.play().catch(e => console.error("Error playing HLS video:", e));
+                        hideThumbnail();
+                    });
+                    hlsInstance.on(Hls.Events.ERROR, onVideoError);
+                } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Native HLS support (Safari, iOS)
+                    videoPlayer.src = videoUrlToPlay;
+                    videoPlayer.currentTime = 0;
+                    videoPlayer.play().catch(e => console.error("Error playing native HLS video:", e));
+                    hideThumbnail();
+                } else {
+                    console.error('HLS is not supported in this browser.');
+                    onVideoError({ type: 'HLS_UNSUPPORTED', details: 'HLS not supported' });
+                }
+            } else if (videoUrlToPlay.endsWith('.mp4')) {
+                videoPlayer.src = videoUrlToPlay;
+                videoPlayer.currentTime = 0; // For MP4, we can usually start from 0 or `startTime` from localStorage
+                videoPlayer.play().catch(e => console.error("Error playing MP4 video:", e));
+                hideThumbnail();
+            } else {
+                console.error(`Unsupported video format or URL: ${videoUrlToPlay}. Skipping.`);
+                onVideoError({ type: 'UNSUPPORTED_FORMAT', details: `Unsupported format: ${videoUrlToPlay}` });
+            }
+             
+            // Mute/Unmute state persistence
+            if (unmuteButton.classList.contains('muted')) {
+                videoPlayer.muted = true;
+            } else {
+                videoPlayer.muted = false;
+            }
+        }
+
+
+        // --- HTML5 VIDEO PLAYER FUNCTIONS ---
+
+        function initializeVideoPlayer() {
+            videoPlayer = document.getElementById('videoPlayer');
+
+            // Add event listeners for HTML5 video events
+            videoPlayer.addEventListener('ended', onVideoStateChange);
+            videoPlayer.addEventListener('play', onVideoStateChange);
+            videoPlayer.addEventListener('pause', onVideoStateChange);
+            videoPlayer.addEventListener('error', onVideoError);
+            videoPlayer.addEventListener('playing', hideThumbnail); // Hide thumbnail when actual playback starts
+            videoPlayer.addEventListener('waiting', displayThumbnail); // Show thumbnail when buffering/waiting
+
+            // Initial load of the scheduled video
+            loadScheduledVideo();
+
+            // Setup intervals
+            saveInterval = setInterval(() => {
+                if (videoPlayer && !videoPlayer.paused && !videoPlayer.ended && currentScheduledProgram) {
+                    const programIdx = scheduleData.schedule.findIndex(p =>
+                        p.start_time === currentScheduledProgram.start_time &&
+                        p.end_time === currentScheduledProgram.end_time &&
+                        JSON.stringify(p.video_urls) === JSON.stringify(currentScheduledProgram.video_urls)
+                    );
+
+                    if (programIdx !== -1 && currentVideoIndexInProgram < currentScheduledProgram.video_urls.length) {
+                        localStorage.setItem(LAST_PLAYED_KEY, JSON.stringify({
+                            programIndex: programIdx,
+                            videoIndexInProgram: currentVideoIndexInProgram,
+                            videoUrl: currentScheduledProgram.video_urls[currentVideoIndexInProgram], // Store the URL
+                            time: videoPlayer.currentTime
+                        }));
+                    }
+                }
+            }, 5000);
+
+            checkScheduleInterval = setInterval(loadScheduledVideo, 60 * 1000); // Check schedule every minute
+        }
+
+        function onVideoStateChange(event) {
+            if (event.type === 'ended') {
+                console.log(`Current video naturally ended (${videoPlayer.src}). Checking next video in program.`);
+                currentVideoIndexInProgram++; // Move to next video in program
+                playVideoFromProgram(); // Attempt to play the next video in the same program
+            }
+            // For 'play', 'pause' events, no specific action needed here beyond what `loadScheduledVideo` handles.
+        }
+
+        function onVideoError(event) {
+            console.error('HTML5 Video Error:', event);
+            displayThumbnail(); // Show black screen on error
+
+            // Handle HLS.js specific errors
+            if (hlsInstance && event.type === Hls.Events.ERROR) {
+                const errorData = event.data;
+                console.error('HLS.js Error:', errorData);
+                if (errorData.fatal) {
+                    switch (errorData.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.error('Fatal network error. Retrying next video in program...');
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.error('Fatal media error. Retrying next video in program...');
+                            break;
+                        default:
+                            console.error('Fatal HLS error. Destroying HLS instance and retrying next video.');
+                            hlsInstance.destroy();
+                            break;
+                    }
+                }
+            } else if (event.target && event.target.error) {
+                // Handle native HTML5 video errors
+                const error = event.target.error;
+                switch (error.code) {
+                    case error.MEDIA_ERR_ABORTED:
+                        console.error("Video playback aborted."); break;
+                    case error.MEDIA_ERR_NETWORK:
+                        console.error("Video network error."); break;
+                    case error.MEDIA_ERR_DECODE:
+                        console.error("Video decode error."); break;
+                    case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                        console.error("Video source not supported."); break;
+                    default:
+                        console.error("Unknown video error."); break;
+                }
+            }
+
+            // Attempt to skip to the next item in the program after an error
+            console.log('Attempting to skip to next item in program after error.');
+            currentVideoIndexInProgram++;
+            playVideoFromProgram(); // This will automatically handle looping if at end
+        }
+
+        // Unmute button functionality
+        unmuteButton.addEventListener('click', () => {
+            if (videoPlayer) {
+                if (videoPlayer.muted) {
+                    videoPlayer.muted = false;
+                    unmuteButton.classList.remove('muted');
+                } else {
+                    videoPlayer.muted = true;
+                    unmuteButton.classList.add('muted');
+                }
+            }
+        });
+
+        // Clear intervals and timeouts when the page is about to be unloaded
+        window.addEventListener('beforeunload', () => {
+            clearInterval(saveInterval);
+            clearInterval(checkScheduleInterval);
+            if (hlsInstance) {
+                hlsInstance.destroy();
+            }
+        });
+
+        // --- START THE PROCESS: FETCH THE SCHEDULE FIRST ---
+        fetchSchedule();
+    </script>
+
 </body>
 </html>
