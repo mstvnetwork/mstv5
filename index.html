@@ -1,131 +1,77 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MSTV Live Channel</title>
+  <title>Embed Player</title>
   <style>
-    body { background: #000; color: #fff; font-family: sans-serif; text-align: center; }
-    #playerContainer { position: relative; width: 90vw; max-width: 800px; margin: auto; }
-    iframe, video { width: 100%; height: 450px; border: none; display: none; background: #000; }
-    #tvGuideBar {
-      background: red;
+    html, body {
+      margin: 0; padding: 0;
+      background: black;
       overflow: hidden;
-      white-space: nowrap;
-      width: 100%;
-      padding: 10px 0;
-      box-sizing: border-box;
-      font-weight: bold;
     }
-    #tvGuideText {
-      display: inline-block;
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      background: #000;
+    }
+    #overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
       color: white;
+      font-family: sans-serif;
       font-size: 16px;
-      animation: scrollText 20s linear infinite;
-    }
-    @keyframes scrollText {
-      0%   { transform: translateX(100%); }
-      100% { transform: translateX(-100%); }
     }
   </style>
 </head>
 <body>
-
-  <h1>📺 MSTV Live Channel</h1>
-  <div id="title">Loading...</div>
-
-  <div id="playerContainer">
-    <iframe id="embedPlayer" allowfullscreen></iframe>
-    <video id="videoPlayer" autoplay muted playsinline></video>
-  </div>
-
-  <div id="tvGuideBar">
-    <div id="tvGuideText">Loading TV Guide...</div>
-  </div>
+  <div id="overlay">Loading...</div>
+  <video id="player" autoplay playsinline></video>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    let playlist = [];
-    let currentIndex = 0;
-    let hls;
+    async function getChannelData() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
 
-    async function loadPlaylist() {
-      try {
-        const response = await fetch("playlist.json"); // Replace with full URL if hosted
-        playlist = await response.json();
-        playCurrent();
-      } catch (err) {
-        document.getElementById('title').textContent = "Failed to load playlist.";
-        console.error("Playlist error:", err);
-      }
-    }
+      const res = await fetch("channels.json"); // use full URL if needed
+      const data = await res.json();
 
-    function playCurrent() {
-      const embed = document.getElementById("embedPlayer");
-      const video = document.getElementById("videoPlayer");
-      const current = playlist[currentIndex];
-
-      document.getElementById("title").textContent = current.title;
-      updateTVGuide();
-
-      // Reset
-      embed.style.display = "none";
-      video.style.display = "none";
-      embed.src = "";
-      video.pause();
-      video.removeAttribute("src");
-
-      if (hls) {
-        hls.destroy();
-        hls = null;
+      if (!data[id]) {
+        document.getElementById('overlay').textContent = "Channel not found.";
+        return;
       }
 
-      if (current.type === "embed") {
-        embed.src = current.url;
-        embed.style.display = "block";
-        setTimeout(nextVideo, 120000); // 2 minutes
-      } else {
-        video.style.display = "block";
-        video.muted = false;
+      const { title, url, type } = data[id];
+      const video = document.getElementById("player");
+      const overlay = document.getElementById("overlay");
 
-        if (current.type === "m3u8") {
-          if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(current.url);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              video.play().catch(e => console.log("Autoplay blocked:", e));
-            });
-          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-            video.src = current.url;
-            video.play().catch(e => console.log("Autoplay blocked:", e));
-          } else {
-            alert("Your browser doesn't support HLS playback.");
-            nextVideo();
-          }
-        } else if (current.type === "mp4") {
-          video.src = current.url;
-          video.play().catch(e => console.log("Autoplay blocked:", e));
+      overlay.textContent = title;
+
+      if (type === "m3u8") {
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(video);
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = url;
+        } else {
+          overlay.textContent = "HLS not supported.";
         }
-
-        video.onended = nextVideo;
+      } else if (type === "mp4") {
+        video.src = url;
       }
+
+      // Try to unmute after load
+      video.muted = false;
+      video.play().catch(() => {
+        overlay.textContent += " (click to play)";
+        video.addEventListener("click", () => video.play());
+      });
     }
 
-    function nextVideo() {
-      currentIndex = (currentIndex + 1) % playlist.length;
-      playCurrent();
-    }
-
-    function updateTVGuide() {
-      let guide = "";
-      for (let i = 0; i < playlist.length; i++) {
-        guide += (i === currentIndex) ? ` ░ NOW: ${playlist[i].title} ░` : ` NEXT: ${playlist[i].title} ░`;
-      }
-      document.getElementById("tvGuideText").textContent = guide;
-    }
-
-    window.onload = loadPlaylist;
+    getChannelData();
   </script>
 </body>
 </html>
