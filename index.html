@@ -3,307 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live TV Channel</title>
-
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <title>Live TV Player</title>
     <style>
-        /* Basic styling for full screen video */
+        /* --- CSS STYLES --- */
         body {
+            font-family: Arial, sans-serif;
             margin: 0;
-            overflow: hidden;
-            background-color: #000;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
             display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            padding: 1rem 0;
+            text-align: center;
+        }
+
+        main {
+            display: flex;
+            flex-wrap: wrap;
             justify-content: center;
-            align-items: center;
-            min-height: 100vh; /* Ensure body takes full viewport height */
-        }
-        #my-video {
-            width: 100vw;
-            height: 100vh;
-            /* Ensure video scales without distortion, covering the area */
-            object-fit: contain;
-            background-color: black; /* To fill empty space if object-fit is 'contain' */
-        }
-        #loading-message {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 1.5em;
-            background-color: rgba(0, 0, 0, 0.7);
+            gap: 20px;
             padding: 20px;
+            flex-grow: 1;
+        }
+
+        .video-player-container {
+            background-color: #fff;
             border-radius: 8px;
-            z-index: 10;
-            display: none; /* Hidden by default */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 100%;
+            max-width: 900px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            height: auto; /* Maintain aspect ratio */
+            max-height: 500px; /* Adjust as needed */
+            background-color: black;
+            border-radius: 4px;
+            display: block; /* Ensure it takes full width */
+            margin-bottom: 15px;
+        }
+
+        #iframeContainer {
+            width: 100%;
+            height: 500px; /* Or set dynamically based on content */
+            border: none;
+            background-color: black;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        #iframeContainer iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        #currentChannelTitle {
+            margin-top: 0;
+            color: #007bff;
+        }
+
+        .channel-list-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+        }
+
+        #channelList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #channelList li {
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #channelList li:hover {
+            background-color: #e2e2e2;
+        }
+
+        #channelList li.active {
+            background-color: #007bff;
+            color: #fff;
+            font-weight: bold;
+        }
+
+        #channelList li button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #channelList li button:hover {
+            background-color: #0056b3;
+        }
+
+        footer {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 1rem 0;
+            margin-top: auto;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            main {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .video-player-container, .channel-list-container {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <video
-        id="my-video"
-        class="video-js vjs-default-skin"
-        controls
-        preload="auto"
-        autoplay
-        playsinline
-        data-setup='{}'
-    >
-        Your browser does not support the video tag.
-    </video>
+    <header>
+        <h1>Live TV Channels</h1>
+    </header>
 
-    <div id="loading-message">Loading channel data...</div>
+    <main>
+        <section class="video-player-container">
+            <video id="videoPlayer" controls autoplay muted></video>
+            <div id="iframeContainer" style="display:none;">
+                </div>
+            <h2 id="currentChannelTitle">Select a Channel</h2>
+        </section>
 
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
+        <section class="channel-list-container">
+            <h2>Available Channels</h2>
+            <ul id="channelList">
+                </ul>
+        </section>
+    </main>
 
+    <footer>
+        <p>© 2025 Live TV Player</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script>
-        const player = videojs('my-video');
-        let currentVideoIndex = 0;
-        let playlist = []; // This will be populated from the JSON file
-        const loadingMessage = document.getElementById('loading-message');
+        // --- JAVASCRIPT LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoPlayer = document.getElementById('videoPlayer');
+            const iframeContainer = document.getElementById('iframeContainer');
+            const currentChannelTitle = document.getElementById('currentChannelTitle');
+            const channelList = document.getElementById('channelList');
 
-        // --- Helper to show/hide loading message ---
-        function showLoading() {
-            loadingMessage.style.display = 'block';
-        }
+            let hls = null; // To manage the HLS.js instance
 
-        function hideLoading() {
-            loadingMessage.style.display = 'none';
-        }
+            // Function to load and play a video
+            function loadChannel(channel) {
+                // Hide iframe and show video player by default
+                iframeContainer.style.display = 'none';
+                videoPlayer.style.display = 'block';
+                videoPlayer.src = ''; // Clear previous source
+                currentChannelTitle.textContent = channel.name;
 
-        // --- Fetch Playlist from JSON ---
-        async function fetchPlaylist() {
-            showLoading();
-            try {
-                // Adjust the path if your playlist.json is in a subfolder (e.g., '/data/playlist.json')
-                const response = await fetch('playlist.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                playlist = await response.json();
-                console.log('Playlist loaded:', playlist);
-                if (playlist.length > 0) {
-                    player.ready(function() {
-                        loadAndResumeChannel();
-                    });
-                } else {
-                    console.error('Playlist is empty!');
-                    hideLoading();
-                }
-            } catch (error) {
-                console.error('Failed to load playlist:', error);
-                loadingMessage.textContent = 'Failed to load channel. Please try again later.';
-            } finally {
-                // hideLoading(); // Hide after initial load attempt, even if failed, to show error message
-            }
-        }
-
-        // --- Helper to play a video ---
-        function playVideo(index, seekTime = 0) {
-            hideLoading(); // Hide loading once video starts loading
-            const video = playlist[index];
-            if (!video) {
-                console.warn('No video found at index:', index, '. Restarting playlist.');
-                index = 0; // Loop back to the start if somehow out of bounds
-                video = playlist[index];
-                if (!video) { // If playlist is still empty after reset
-                    console.error('Playlist is completely empty or malformed. Cannot play video.');
-                    showLoading(); // Show error message if nothing can be played
-                    loadingMessage.textContent = 'No playable content available.';
-                    return;
-                }
-            }
-
-            console.log(`Playing: ${video.url} from ${seekTime}s`);
-
-            // Check if HLS is supported and if it's an M3U8 URL
-            if (video.url.endsWith('.m3u8') && Hls.isSupported()) {
-                if (player.hls) {
-                    player.hls.destroy(); // Destroy previous HLS instance if any
-                }
-                const hls = new Hls();
-                hls.loadSource(video.url);
-                hls.attachMedia(player.tech_.el()); // Attach to the underlying video element
-                player.hls = hls; // Store HLS instance on player for later cleanup if needed
-
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    player.play();
-                    if (seekTime > 0) {
-                        player.currentTime(seekTime);
-                    }
-                });
-                hls.on(Hls.Events.ERROR, function (event, data) {
-                    console.error('HLS.js error:', data);
-                    if (data.fatal) {
-                        switch(data.type) {
-                            case Hls.ErrorTypes.NETWORK_ERROR:
-                                console.error('HLS Network error. Retrying or playing next.');
-                                showLoading();
-                                loadingMessage.textContent = 'Network error. Trying next video...';
-                                setTimeout(() => playNextVideo(), 2000); // Try next after a short delay
-                                break;
-                            case Hls.ErrorTypes.MEDIA_ERROR:
-                                console.error('HLS Media error. Trying to recover or playing next.');
-                                hls.recoverMediaError();
-                                showLoading();
-                                loadingMessage.textContent = 'Media error. Attempting recovery...';
-                                setTimeout(() => { // Hide message after recovery attempt
-                                    if (!player.paused()) hideLoading();
-                                }, 3000);
-                                break;
-                            default:
-                                playNextVideo(); // Cannot recover, play next video
-                                break;
-                        }
-                    }
-                });
-            } else {
-                // For MP4 or if HLS is not supported
-                player.src({
-                    src: video.url,
-                    type: video.url.endsWith('.mp4') ? 'video/mp4' : 'application/x-mpegURL' // Fallback type
-                });
-                player.load(); // Load the new source
-                player.play();
-                player.on('loadedmetadata', function() {
-                    if (seekTime > 0) {
-                        player.currentTime(seekTime);
-                    }
-                });
-            }
-            currentVideoIndex = index; // Update the current index
-            saveChannelState(); // Save state after starting playback
-        }
-
-        // --- Advance to the next video in the playlist ---
-        function playNextVideo() {
-            let nextIndex = (currentVideoIndex + 1) % playlist.length;
-            playVideo(nextIndex);
-        }
-
-        // --- Event Listener for Video End ---
-        player.on('ended', function() {
-            console.log('Video ended. Playing next...');
-            playNextVideo();
-        });
-
-        // --- Error Handling for Video.js ---
-        player.on('error', function(e) {
-            console.error('Video.js error:', player.error(), e);
-            console.log('Attempting to play next video due to error...');
-            showLoading();
-            loadingMessage.textContent = 'Video playback error. Trying next video...';
-            setTimeout(() => playNextVideo(), 2000); // Add a small delay before moving on
-        });
-
-        // --- Listen for buffering ---
-        player.on('waiting', function() {
-            console.log('Video is buffering...');
-            showLoading();
-            loadingMessage.textContent = 'Buffering...';
-        });
-
-        player.on('playing', function() {
-            console.log('Video is playing.');
-            hideLoading();
-        });
-
-
-        // --- Client-Side Time Synchronization (using localStorage) ---
-        // IMPORTANT: This only syncs for the *individual user's last session* and not across multiple users
-        // For true "live TV channel" sync, you NEED a backend server.
-
-        const CHANNEL_STATE_KEY = 'liveTvChannelState';
-
-        function saveChannelState() {
-            const state = {
-                lastPlayedIndex: currentVideoIndex,
-                lastPlayedTime: player.currentTime(),
-                timestamp: Date.now() // When this state was saved
-            };
-            localStorage.setItem(CHANNEL_STATE_KEY, JSON.stringify(state));
-            // console.log('Channel state saved:', state); // Uncomment for debugging
-        }
-
-        function loadAndResumeChannel() {
-            const savedState = localStorage.getItem(CHANNEL_STATE_KEY);
-            if (savedState) {
-                const state = JSON.parse(savedState);
-                console.log('Loaded saved state:', state);
-
-                let calculatedIndex = 0;
-                let calculatedSeekTime = 0;
-                const timeSinceLastSave = (Date.now() - state.timestamp) / 1000; // in seconds
-
-                // Estimate where the "channel" should be now based on saved state and elapsed time
-                // This logic iterates through the playlist to find the correct video and seek time
-                let estimatedCurrentChannelTime = state.lastPlayedTime + timeSinceLastSave;
-                let foundPoint = false;
-
-                for (let i = state.lastPlayedIndex; i < playlist.length; i++) {
-                    const video = playlist[i];
-                    if (video.duration === null) {
-                        // For live streams (null duration), we assume it's still the same live stream.
-                        // The server would normally tell us the exact segment for a live stream.
-                        calculatedIndex = i;
-                        calculatedSeekTime = 0; // Or whatever the server indicates for a live stream
-                        foundPoint = true;
-                        break;
-                    }
-                    if (estimatedCurrentChannelTime < video.duration) {
-                        calculatedIndex = i;
-                        calculatedSeekTime = estimatedCurrentChannelTime;
-                        foundPoint = true;
-                        break;
-                    }
-                    estimatedCurrentChannelTime -= video.duration;
+                // Destroy existing HLS instance if it exists
+                if (hls) {
+                    hls.destroy();
+                    hls = null;
                 }
 
-                if (!foundPoint) {
-                    // If we've passed all videos from the saved point, loop back to start
-                    // and continue calculating from the beginning of the playlist
-                    let totalPlaylistDuration = playlist.filter(v => v.duration !== null).reduce((sum, v) => sum + v.duration, 0);
-                    if (totalPlaylistDuration > 0) {
-                        estimatedCurrentChannelTime = (state.lastPlayedTime + timeSinceLastSave) % totalPlaylistDuration;
-                        for (let i = 0; i < playlist.length; i++) {
-                            const video = playlist[i];
-                            if (video.duration === null) continue; // Skip live streams for duration calculation
-                            if (estimatedCurrentChannelTime < video.duration) {
-                                calculatedIndex = i;
-                                calculatedSeekTime = estimatedCurrentChannelTime;
-                                foundPoint = true;
-                                break;
+                if (channel.type === 'm3u8') {
+                    if (Hls.isSupported()) {
+                        hls = new Hls();
+                        hls.loadSource(channel.url);
+                        hls.attachMedia(videoPlayer);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                            videoPlayer.play();
+                        });
+                        hls.on(Hls.Events.ERROR, function (event, data) {
+                            if (data.fatal) {
+                                switch (data.type) {
+                                    case Hls.ErrorTypes.NETWORK_ERROR:
+                                        console.error('fatal network error encountered, try to recover', data);
+                                        hls.startLoad();
+                                        break;
+                                    case Hls.ErrorTypes.MEDIA_ERROR:
+                                        console.error('fatal media error encountered, try to recover', data);
+                                        hls.recoverMediaError();
+                                        break;
+                                    default:
+                                        console.error('fatal error, cannot recover', data);
+                                        hls.destroy();
+                                        break;
+                                }
                             }
-                            estimatedCurrentChannelTime -= video.duration;
-                        }
+                        });
+                    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                        // For browsers that natively support HLS (e.g., Safari)
+                        videoPlayer.src = channel.url;
+                        videoPlayer.addEventListener('loadedmetadata', function() {
+                            videoPlayer.play();
+                        });
                     } else {
-                        // If all videos are live or no durations, just start from index 0
-                        calculatedIndex = 0;
-                        calculatedSeekTime = 0;
-                        foundPoint = true;
+                        alert('Your browser does not support HLS video playback.');
                     }
-                }
-
-                if (foundPoint) {
-                    console.log(`Resuming from estimated video ${calculatedIndex} at ${calculatedSeekTime}s`);
-                    playVideo(calculatedIndex, calculatedSeekTime);
+                } else if (channel.type === 'iframe') {
+                    videoPlayer.style.display = 'none'; // Hide video player
+                    iframeContainer.style.display = 'block'; // Show iframe container
+                    iframeContainer.innerHTML = `<iframe src="${channel.url}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
                 } else {
-                    console.warn('Could not determine resume point. Starting from beginning.');
-                    playVideo(0);
+                    console.error('Unknown channel type:', channel.type);
+                    alert('This channel type is not supported.');
                 }
-            } else {
-                // No saved state, start from the beginning
-                console.log('No saved state found. Starting from the beginning.');
-                playVideo(0);
+
+                // Update active class for channel list items
+                const currentActive = document.querySelector('.channel-list-container li.active');
+                if (currentActive) {
+                    currentActive.classList.remove('active');
+                }
+                document.querySelector(`li[data-channel-id="${channel.id}"]`).classList.add('active');
             }
-        }
 
-        // Save state before user leaves or refreshes the page
-        window.addEventListener('beforeunload', saveChannelState);
+            // Fetch channels from the playlist.json file
+            // Adjust the path if your index.html is not in the root
+            fetch('playlist/playlist.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(channels => {
+                    // Populate the channel list
+                    if (channels.length > 0) {
+                        channels.forEach(channel => {
+                            const listItem = document.createElement('li');
+                            listItem.dataset.channelId = channel.id; // Store ID for easy lookup
+                            listItem.innerHTML = `
+                                <span>${channel.name}</span>
+                                <button>Play</button>
+                            `;
+                            listItem.querySelector('button').addEventListener('click', () => {
+                                loadChannel(channel);
+                            });
+                            channelList.appendChild(listItem);
+                        });
 
-        // Initiate fetching the playlist when the page loads
-        fetchPlaylist();
+                        // Auto-play the first channel
+                        loadChannel(channels[0]);
+                    } else {
+                        channelList.innerHTML = '<li>No channels found in playlist.json.</li>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching channels:', error);
+                    channelList.innerHTML = `<li>Error loading channels: ${error.message}. Please ensure 'playlist/playlist.json' exists and is accessible.</li>`;
+                });
+        });
     </script>
 </body>
 </html>
