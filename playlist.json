@@ -1,6 +1,32 @@
 [
-    { "id": "intro", "url": "https://cdn.glitch.me/cbf376f9-03b0-466d-96ac-736270631677/sample.mp4", "duration": 10 },
-    { "id": "episode1", "url": "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8", "duration": null },
-    { "id": "ad1", "url": "https://test-videos.co.uk/vids/bigbuckbunny/mp4/720/Big_Buck_Bunny_720_10s_1MB.mp4", "duration": 10 },
-    { "id": "outro", "url": "https://cdn.glitch.me/cbf376f9-03b0-466d-96ac-736270631677/sample.mp4", "duration": 10 }
+    {
+        "id": "channel1",
+        "name": "Global News 24/7",
+        "type": "m3u8",
+        "url": "https://example.com/path/to/global-news.m3u8"
+    },
+    {
+        "id": "channel2",
+        "name": "Sports Central HD",
+        "type": "m3u8",
+        "url": "https://playertest.longtailvideo.com/adaptive/oceans_aes/oceans_aes.m3u8"
+    },
+    {
+        "id": "channel3",
+        "name": "Classic Movies",
+        "type": "iframe",
+        "url": "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1"
+    },
+    {
+        "id": "channel4",
+        "name": "Live Music Gigs",
+        "type": "m3u8",
+        "url": "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"
+    },
+    {
+        "id": "channel5",
+        "name": "Tech Insights",
+        "type": "iframe",
+        "url": "https://player.vimeo.com/video/76979871?h=8272103f66&color=ffffff&byline=0&portrait=0&autoplay=1&muted=1"
+    }
 ]
