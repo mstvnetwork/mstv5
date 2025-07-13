@@ -34,55 +34,55 @@
     }
 
     function playCurrent() {
-      const embed = document.getElementById("embedPlayer");
-      const video = document.getElementById("videoPlayer");
-      const current = playlist[currentIndex];
-      document.getElementById("title").textContent = current.title;
+  const embed = document.getElementById("embedPlayer");
+  const video = document.getElementById("videoPlayer");
+  const current = playlist[currentIndex];
 
-      // Reset players
-      embed.style.display = "none";
-      video.style.display = "none";
-      embed.src = "";
-      video.pause();
-      video.removeAttribute("src");
-      if (hls) { hls.destroy(); hls = null; }
+  document.getElementById("title").textContent = current.title;
+  updateTVGuide();
 
-      // Choose player type
-      if (current.type === "embed") {
-        embed.src = current.url;
-        embed.style.display = "block";
-        // Embed fallback: auto-next after fixed time
-        setTimeout(nextVideo, 120000); // 2 min per embed
+  // Reset
+  embed.style.display = "none";
+  video.style.display = "none";
+  embed.src = "";
+  video.pause();
+  video.removeAttribute("src");
+  video.muted = false; // ✅ UNMUTE
+  if (hls) { hls.destroy(); hls = null; }
+
+  if (current.type === "embed") {
+    embed.src = current.url;
+    embed.style.display = "block";
+
+    // Try to autoplay iframe-based videos
+    // (Success depends on host site policy)
+    setTimeout(nextVideo, 120000); // 2 mins fallback
+  } else {
+    video.style.display = "block";
+
+    if (current.type === "m3u8") {
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(current.url);
+        hls.attachMedia(video);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = current.url;
       } else {
-        video.style.display = "block";
-
-        if (current.type === "m3u8") {
-          if (Hls.isSupported()) {
-            hls = new Hls();
-            hls.loadSource(current.url);
-            hls.attachMedia(video);
-          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-            video.src = current.url;
-          } else {
-            alert("HLS not supported in this browser.");
-            nextVideo(); return;
-          }
-        } else if (current.type === "mp4") {
-          video.src = current.url;
-        }
-
-        video.onended = nextVideo;
-        video.play();
+        alert("HLS not supported");
+        nextVideo(); return;
       }
+    } else if (current.type === "mp4") {
+      video.src = current.url;
     }
 
-    function nextVideo() {
-      currentIndex = (currentIndex + 1) % playlist.length;
-      playCurrent();
-    }
+    video.muted = false; // ✅ Unmute again
+    video.play().catch(err => {
+      console.warn("Autoplay failed:", err);
+    });
 
-    loadPlaylist();
-  </script>
-
+    video.onended = nextVideo;
+  }
+}
+</script>
 </body>
 </html>
