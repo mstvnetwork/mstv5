@@ -3,417 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Looping Video Player</title>
+    <title>Live TV Channel</title>
+
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
-        /* Ensure HTML and Body take full viewport and prevent overall page scrolling */
-        html, body {
-            height: 100%; /* Make sure they fill the entire viewport height */
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Prevent any scrollbars on the main document */
-        }
-
+        /* Basic styling for full screen video */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #1a1a1a; /* Dark background */
-            color: #f0f0f0; /* Light text */
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
             display: flex;
-            justify-content: center; /* Horizontally center */
-            align-items: center; /* Vertically center the .tv-container */
-            flex-direction: column; /* Keep column direction for the layout */
-        }
-
-        .tv-container {
-            width: 90%; /* Adjust as needed */
-            max-width: 1280px; /* Max width for large screens, e.g., 720p or 1080p aspect */
-            border-radius: 10px;
-            overflow: hidden; /* Crucial for hiding parts of the scrolling text outside the container */
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-            background-color: #2a2a2a;
-            flex-shrink: 0; /* Prevent it from shrinking on smaller screens */
-        }
-
-        /* Styling for the HTML5 <video> element */
-        #videoPlayer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* Ensures video covers the entire player area */
-            background-color: black; /* Default background for player */
-        }
-
-        .video-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10; /* Place it above the video */
-            pointer-events: auto; /* It will receive pointer events */
-        }
-
-        /* Thumbnail Placeholder Styling - Now just a black screen for loading/errors */
-        .video-thumbnail-placeholder {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000; /* Black background */
-            background-size: contain; 
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 12; /* Above video, below overlay/unmute button */
-            display: none; /* Hidden by default */
-            transition: opacity 0.3s ease; /* Smooth fade in/out */
-            opacity: 0;
-        }
-
-        /* Custom Unmute Button */
-        .unmute-button {
-            position: absolute;
-            top: 20px; /* Distance from the top */
-            right: 20px; /* Distance from the right */
-            z-index: 20; /* Place it above the overlay and video */
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            padding: 15px; /* Adjust padding as needed */
-            border-radius: 50%; /* Make it circular */
-            cursor: pointer;
-            font-size: 4.5em; /* ICON SIZE SET TO 4.5em */
-            display: flex;
-            align-items: center;
             justify-content: center;
-            transition: background 0.3s ease, opacity 0.3s ease;
-            opacity: 1; /* Default visible state */
+            align-items: center;
+            min-height: 100vh; /* Ensure body takes full viewport height */
         }
-
-        .unmute-button:hover {
-            background: rgba(0, 0, 0, 0.8);
+        #my-video {
+            width: 100vw;
+            height: 100vh;
+            /* Ensure video scales without distortion, covering the area */
+            object-fit: contain;
+            background-color: black; /* To fill empty space if object-fit is 'contain' */
         }
-
-        .unmute-button .mute-icon { display: none; }
-        .unmute-button.muted .mute-icon { display: inline-block; }
-        .unmute-button.muted .unmute-icon { display: none; }
-        .unmute-button:not(.muted) .mute-icon { display: none; }
-        .unmute-button:not(.muted) .unmute-icon { display: inline-block; }
-
-        /* Scrolling Text Container */
-        .scrolling-text-container {
-            position: absolute; /* Position relative to .video-container */
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 40px; /* Height of the ticker */
-            background-color: red; /* Red background */
-            overflow: hidden; /* Hide text outside this band */
-            z-index: 15; /* Above video, below unmute button */
-            display: flex;
-            align-items: center; /* Vertically center the text */
-            white-space: nowrap; /* Prevent text from wrapping */
-            box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow above ticker */
-        }
-
-        .scrolling-text {
-            color: white; /* White text */
-            font-size: 1.2em; /* Adjust font size */
-            font-weight: bold;
-            padding-left: 100%; /* Start text off-screen to the right */
-            animation: scroll-left 40s linear infinite; /* Animation duration and loop */
-        }
-
-        /* Keyframe animation for scrolling */
-        @keyframes scroll-left {
-            0% { transform: translateX(0%); }
-            100% { transform: translateX(-100%); } /* Scrolls its own width left */
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .tv-container {
-                width: 95%;
-            }
-
-            .unmute-button {
-                top: 10px;
-                right: 10px;
-                padding: 10px;
-                font-size: 3.0em; /* Adjusted for smaller screens */
-            }
-
-            .scrolling-text-container {
-                height: 30px; /* Smaller height on smaller screens */
-            }
-
-            .scrolling-text {
-                font-size: 1em;
-                animation-duration: 30s; /* Faster scroll on smaller screens */
-            }
-        }
-
-        @media (max-width: 480px) {
-            .tv-container {
-                width: 100%;
-                border-radius: 0;
-            }
-            .unmute-button {
-                top: 5px;
-                right: 5px;
-                padding: 8px;
-                font-size: 2.0em; /* Adjusted for very small screens */
-            }
-
-            .scrolling-text-container {
-                height: 25px;
-            }
-
-            .scrolling-text {
-                font-size: 0.9em;
-                animation-duration: 25s;
-            }
+        #loading-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5em;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 8px;
+            z-index: 10;
+            display: none; /* Hidden by default */
         }
     </style>
 </head>
 <body>
+    <video
+        id="my-video"
+        class="video-js vjs-default-skin"
+        controls
+        preload="auto"
+        autoplay
+        playsinline
+        data-setup='{}'
+    >
+        Your browser does not support the video tag.
+    </video>
 
-    <div class="tv-container">
-        <div class="video-container">
-            <video id="videoPlayer" playsinline autoplay muted></video> 
-            <div class="video-overlay"></div>
-            <div class="video-thumbnail-placeholder" id="videoThumbnail"></div> 
-            <button id="unmuteButton" class="unmute-button muted">
-                <span class="mute-icon">🔇</span>
-                <span class="unmute-icon">🔊</span>
-            </button>
+    <div id="loading-message">Loading channel data...</div>
 
-            <div class="scrolling-text-container">
-                <div class="scrolling-text" id="newsTicker">
-                    Playing videos in sequence, looping endlessly! Enjoy the show!</div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.0/dist/hls.min.js"></script>
 
     <script>
-        // --- GLOBAL STATE VARIABLES ---
-        const LAST_PLAYED_KEY = 'lastPlayedVideoIndex'; // Key for localStorage
-        let videoPlayer; // Reference to the HTML5 video element
-        let hlsInstance; // Reference to the HLS.js instance
-        let saveInterval; // For saving last played position
-        let videoUrls = []; // Stores the loaded video URLs
-        let currentVideoIndex = 0; // Current video index in the sequence
+        const player = videojs('my-video');
+        let currentVideoIndex = 0;
+        let playlist = []; // This will be populated from the JSON file
+        const loadingMessage = document.getElementById('loading-message');
 
-        const unmuteButton = document.getElementById('unmuteButton');
-        const newsTicker = document.getElementById('newsTicker');
-        const videoThumbnail = document.getElementById('videoThumbnail');
-
-        // Function to display the thumbnail (now a simple black screen)
-        function displayThumbnail() {
-            videoThumbnail.style.display = 'block';
-            videoThumbnail.offsetHeight; // Trigger reflow for transition
-            videoThumbnail.style.opacity = '1';
+        // --- Helper to show/hide loading message ---
+        function showLoading() {
+            loadingMessage.style.display = 'block';
         }
 
-        // Function to hide the thumbnail
-        function hideThumbnail() {
-            videoThumbnail.style.opacity = '0';
-            setTimeout(() => {
-                videoThumbnail.style.display = 'none';
-            }, 300); // Match CSS transition duration
+        function hideLoading() {
+            loadingMessage.style.display = 'none';
         }
 
-        // --- FETCH VIDEO URLs ---
-        async function fetchVideoUrls() {
+        // --- Fetch Playlist from JSON ---
+        async function fetchPlaylist() {
+            showLoading();
             try {
-                // Changed from schedule.json to videos.json
-                const response = await fetch('videos.json'); 
+                // Adjust the path if your playlist.json is in a subfolder (e.g., '/data/playlist.json')
+                const response = await fetch('playlist.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json();
-                videoUrls = data.video_urls; // Extract the video_urls array
-                
-                if (videoUrls.length === 0) {
-                    console.error("No video URLs found in videos.json.");
-                    newsTicker.textContent = "Error: No videos to play. Check videos.json.";
-                    newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
-                    displayThumbnail(); // Show a black screen if no videos
+                playlist = await response.json();
+                console.log('Playlist loaded:', playlist);
+                if (playlist.length > 0) {
+                    player.ready(function() {
+                        loadAndResumeChannel();
+                    });
+                } else {
+                    console.error('Playlist is empty!');
+                    hideLoading();
+                }
+            } catch (error) {
+                console.error('Failed to load playlist:', error);
+                loadingMessage.textContent = 'Failed to load channel. Please try again later.';
+            } finally {
+                // hideLoading(); // Hide after initial load attempt, even if failed, to show error message
+            }
+        }
+
+        // --- Helper to play a video ---
+        function playVideo(index, seekTime = 0) {
+            hideLoading(); // Hide loading once video starts loading
+            const video = playlist[index];
+            if (!video) {
+                console.warn('No video found at index:', index, '. Restarting playlist.');
+                index = 0; // Loop back to the start if somehow out of bounds
+                video = playlist[index];
+                if (!video) { // If playlist is still empty after reset
+                    console.error('Playlist is completely empty or malformed. Cannot play video.');
+                    showLoading(); // Show error message if nothing can be played
+                    loadingMessage.textContent = 'No playable content available.';
                     return;
                 }
-
-                console.log('Video URLs loaded:', videoUrls);
-
-                // Initialize HTML5 video player after URLs are loaded
-                initializeVideoPlayer();
-            } catch (error) {
-                console.error('Could not load videos.json:', error);
-                newsTicker.textContent = 'Error loading videos. Check console and make sure "videos.json" exists.';
-                newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
-                displayThumbnail(); // Show a black screen on error
-                alert('Failed to load video list. Please ensure videos.json exists and is valid. Check console for details.');
-            }
-        }
-
-        // --- PLAY VIDEO IN SEQUENCE ---
-        function playVideoInSequence() {
-            if (videoUrls.length === 0) {
-                console.warn("No video URLs available to play.");
-                return;
             }
 
-            // Loop back to the start if we reached the end of the list
-            if (currentVideoIndex >= videoUrls.length) {
-                currentVideoIndex = 0;
-            }
+            console.log(`Playing: ${video.url} from ${seekTime}s`);
 
-            const videoUrlToPlay = videoUrls[currentVideoIndex];
-            console.log(`Playing video ${currentVideoIndex + 1}/${videoUrls.length}: ${videoUrlToPlay}`);
-            newsTicker.textContent = `Now Playing: Video ${currentVideoIndex + 1} | Next: Video ${(currentVideoIndex + 1) % videoUrls.length + 1}`;
-            newsTicker.style.animation = 'none'; void newsTicker.offsetWidth; newsTicker.style.animation = '';
-
-            displayThumbnail(); // Show black screen while loading
-
-            if (hlsInstance) {
-                hlsInstance.destroy(); // Destroy previous HLS instance
-                hlsInstance = null;
-            }
-
-            if (videoUrlToPlay.endsWith('.m3u8')) {
-                if (Hls.isSupported()) {
-                    hlsInstance = new Hls();
-                    hlsInstance.loadSource(videoUrlToPlay);
-                    hlsInstance.attachMedia(videoPlayer);
-                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
-                        videoPlayer.play().catch(e => console.error("Error playing HLS video:", e));
-                    });
-                    hlsInstance.on(Hls.Events.ERROR, onVideoError);
-                } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Native HLS support (Safari, iOS)
-                    videoPlayer.src = videoUrlToPlay;
-                    videoPlayer.play().catch(e => console.error("Error playing native HLS video:", e));
-                } else {
-                    console.error('HLS is not supported in this browser.');
-                    onVideoError({ type: 'HLS_UNSUPPORTED', details: 'HLS not supported' });
+            // Check if HLS is supported and if it's an M3U8 URL
+            if (video.url.endsWith('.m3u8') && Hls.isSupported()) {
+                if (player.hls) {
+                    player.hls.destroy(); // Destroy previous HLS instance if any
                 }
-            } else if (videoUrlToPlay.endsWith('.mp4')) {
-                videoPlayer.src = videoUrlToPlay;
-                videoPlayer.play().catch(e => console.error("Error playing MP4 video:", e));
+                const hls = new Hls();
+                hls.loadSource(video.url);
+                hls.attachMedia(player.tech_.el()); // Attach to the underlying video element
+                player.hls = hls; // Store HLS instance on player for later cleanup if needed
+
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    player.play();
+                    if (seekTime > 0) {
+                        player.currentTime(seekTime);
+                    }
+                });
+                hls.on(Hls.Events.ERROR, function (event, data) {
+                    console.error('HLS.js error:', data);
+                    if (data.fatal) {
+                        switch(data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                console.error('HLS Network error. Retrying or playing next.');
+                                showLoading();
+                                loadingMessage.textContent = 'Network error. Trying next video...';
+                                setTimeout(() => playNextVideo(), 2000); // Try next after a short delay
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                console.error('HLS Media error. Trying to recover or playing next.');
+                                hls.recoverMediaError();
+                                showLoading();
+                                loadingMessage.textContent = 'Media error. Attempting recovery...';
+                                setTimeout(() => { // Hide message after recovery attempt
+                                    if (!player.paused()) hideLoading();
+                                }, 3000);
+                                break;
+                            default:
+                                playNextVideo(); // Cannot recover, play next video
+                                break;
+                        }
+                    }
+                });
             } else {
-                console.error(`Unsupported video format or URL: ${videoUrlToPlay}. Skipping to next.`);
-                onVideoError({ type: 'UNSUPPORTED_FORMAT', details: `Unsupported format: ${videoUrlToPlay}` });
+                // For MP4 or if HLS is not supported
+                player.src({
+                    src: video.url,
+                    type: video.url.endsWith('.mp4') ? 'video/mp4' : 'application/x-mpegURL' // Fallback type
+                });
+                player.load(); // Load the new source
+                player.play();
+                player.on('loadedmetadata', function() {
+                    if (seekTime > 0) {
+                        player.currentTime(seekTime);
+                    }
+                });
             }
-             
-            // Mute/Unmute state persistence
-            videoPlayer.muted = unmuteButton.classList.contains('muted');
+            currentVideoIndex = index; // Update the current index
+            saveChannelState(); // Save state after starting playback
         }
 
-
-        // --- HTML5 VIDEO PLAYER FUNCTIONS ---
-
-        function initializeVideoPlayer() {
-            videoPlayer = document.getElementById('videoPlayer');
-
-            // Load last played state
-            const lastPlayed = JSON.parse(localStorage.getItem(LAST_PLAYED_KEY));
-            if (lastPlayed && videoUrls[lastPlayed.index] === lastPlayed.url) {
-                currentVideoIndex = lastPlayed.index;
-                videoPlayer.currentTime = lastPlayed.time;
-                console.log(`Resuming from video index ${currentVideoIndex} at ${videoPlayer.currentTime}s.`);
-            } else {
-                console.log("Starting from the beginning of the video list.");
-                currentVideoIndex = 0;
-                videoPlayer.currentTime = 0;
-            }
-
-            // Add event listeners for HTML5 video events
-            videoPlayer.addEventListener('ended', onVideoStateChange);
-            videoPlayer.addEventListener('play', onVideoStateChange);
-            videoPlayer.addEventListener('pause', onVideoStateChange);
-            videoPlayer.addEventListener('error', onVideoError);
-            videoPlayer.addEventListener('playing', hideThumbnail); // Hide thumbnail when actual playback starts
-            videoPlayer.addEventListener('waiting', displayThumbnail); // Show thumbnail when buffering/waiting
-
-            // Start playing the first (or last-played) video
-            playVideoInSequence();
-
-            // Save current position every 5 seconds
-            saveInterval = setInterval(() => {
-                if (videoPlayer && !videoPlayer.paused && !videoPlayer.ended && videoUrls.length > 0) {
-                    localStorage.setItem(LAST_PLAYED_KEY, JSON.stringify({
-                        index: currentVideoIndex,
-                        url: videoUrls[currentVideoIndex], // Store URL for integrity check
-                        time: videoPlayer.currentTime
-                    }));
-                }
-            }, 5000);
+        // --- Advance to the next video in the playlist ---
+        function playNextVideo() {
+            let nextIndex = (currentVideoIndex + 1) % playlist.length;
+            playVideo(nextIndex);
         }
 
-        function onVideoStateChange(event) {
-            if (event.type === 'ended') {
-                console.log(`Current video naturally ended (${videoPlayer.src}). Moving to next video in sequence.`);
-                currentVideoIndex++; // Move to next video in sequence
-                playVideoInSequence(); // Play the next video
-            }
-        }
-
-        function onVideoError(event) {
-            console.error('HTML5 Video Error:', event);
-            displayThumbnail(); // Show black screen on error
-
-            // Handle HLS.js specific errors
-            if (hlsInstance && event.type === Hls.Events.ERROR) {
-                const errorData = event.data;
-                console.error('HLS.js Error:', errorData);
-                if (errorData.fatal) {
-                    // Attempt to destroy and recreate HLS instance or skip
-                    hlsInstance.destroy();
-                }
-            } else if (event.target && event.target.error) {
-                // Handle native HTML5 video errors
-                const error = event.target.error;
-                switch (error.code) {
-                    case error.MEDIA_ERR_ABORTED: console.error("Video playback aborted."); break;
-                    case error.MEDIA_ERR_NETWORK: console.error("Video network error."); break;
-                    case error.MEDIA_ERR_DECODE: console.error("Video decode error."); break;
-                    case error.MEDIA_ERR_SRC_NOT_SUPPORTED: console.error("Video source not supported."); break;
-                    default: console.error("Unknown video error."); break;
-                }
-            }
-
-            // Attempt to skip to the next item after an error
-            console.log('Attempting to skip to next video in sequence after error.');
-            currentVideoIndex++;
-            playVideoInSequence(); // This will automatically handle looping if at end
-        }
-
-        // Unmute button functionality
-        unmuteButton.addEventListener('click', () => {
-            if (videoPlayer) {
-                if (videoPlayer.muted) {
-                    videoPlayer.muted = false;
-                    unmuteButton.classList.remove('muted');
-                } else {
-                    videoPlayer.muted = true;
-                    unmuteButton.classList.add('muted');
-                }
-            }
+        // --- Event Listener for Video End ---
+        player.on('ended', function() {
+            console.log('Video ended. Playing next...');
+            playNextVideo();
         });
 
-        // Clear intervals and timeouts when the page is about to be unloaded
-        window.addEventListener('beforeunload', () => {
-            clearInterval(saveInterval);
-            if (hlsInstance) {
-                hlsInstance.destroy();
-            }
+        // --- Error Handling for Video.js ---
+        player.on('error', function(e) {
+            console.error('Video.js error:', player.error(), e);
+            console.log('Attempting to play next video due to error...');
+            showLoading();
+            loadingMessage.textContent = 'Video playback error. Trying next video...';
+            setTimeout(() => playNextVideo(), 2000); // Add a small delay before moving on
         });
 
-        // --- START THE PROCESS: FETCH THE VIDEO URLs FIRST ---
-        fetchVideoUrls();
+        // --- Listen for buffering ---
+        player.on('waiting', function() {
+            console.log('Video is buffering...');
+            showLoading();
+            loadingMessage.textContent = 'Buffering...';
+        });
+
+        player.on('playing', function() {
+            console.log('Video is playing.');
+            hideLoading();
+        });
+
+
+        // --- Client-Side Time Synchronization (using localStorage) ---
+        // IMPORTANT: This only syncs for the *individual user's last session* and not across multiple users
+        // For true "live TV channel" sync, you NEED a backend server.
+
+        const CHANNEL_STATE_KEY = 'liveTvChannelState';
+
+        function saveChannelState() {
+            const state = {
+                lastPlayedIndex: currentVideoIndex,
+                lastPlayedTime: player.currentTime(),
+                timestamp: Date.now() // When this state was saved
+            };
+            localStorage.setItem(CHANNEL_STATE_KEY, JSON.stringify(state));
+            // console.log('Channel state saved:', state); // Uncomment for debugging
+        }
+
+        function loadAndResumeChannel() {
+            const savedState = localStorage.getItem(CHANNEL_STATE_KEY);
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                console.log('Loaded saved state:', state);
+
+                let calculatedIndex = 0;
+                let calculatedSeekTime = 0;
+                const timeSinceLastSave = (Date.now() - state.timestamp) / 1000; // in seconds
+
+                // Estimate where the "channel" should be now based on saved state and elapsed time
+                // This logic iterates through the playlist to find the correct video and seek time
+                let estimatedCurrentChannelTime = state.lastPlayedTime + timeSinceLastSave;
+                let foundPoint = false;
+
+                for (let i = state.lastPlayedIndex; i < playlist.length; i++) {
+                    const video = playlist[i];
+                    if (video.duration === null) {
+                        // For live streams (null duration), we assume it's still the same live stream.
+                        // The server would normally tell us the exact segment for a live stream.
+                        calculatedIndex = i;
+                        calculatedSeekTime = 0; // Or whatever the server indicates for a live stream
+                        foundPoint = true;
+                        break;
+                    }
+                    if (estimatedCurrentChannelTime < video.duration) {
+                        calculatedIndex = i;
+                        calculatedSeekTime = estimatedCurrentChannelTime;
+                        foundPoint = true;
+                        break;
+                    }
+                    estimatedCurrentChannelTime -= video.duration;
+                }
+
+                if (!foundPoint) {
+                    // If we've passed all videos from the saved point, loop back to start
+                    // and continue calculating from the beginning of the playlist
+                    let totalPlaylistDuration = playlist.filter(v => v.duration !== null).reduce((sum, v) => sum + v.duration, 0);
+                    if (totalPlaylistDuration > 0) {
+                        estimatedCurrentChannelTime = (state.lastPlayedTime + timeSinceLastSave) % totalPlaylistDuration;
+                        for (let i = 0; i < playlist.length; i++) {
+                            const video = playlist[i];
+                            if (video.duration === null) continue; // Skip live streams for duration calculation
+                            if (estimatedCurrentChannelTime < video.duration) {
+                                calculatedIndex = i;
+                                calculatedSeekTime = estimatedCurrentChannelTime;
+                                foundPoint = true;
+                                break;
+                            }
+                            estimatedCurrentChannelTime -= video.duration;
+                        }
+                    } else {
+                        // If all videos are live or no durations, just start from index 0
+                        calculatedIndex = 0;
+                        calculatedSeekTime = 0;
+                        foundPoint = true;
+                    }
+                }
+
+                if (foundPoint) {
+                    console.log(`Resuming from estimated video ${calculatedIndex} at ${calculatedSeekTime}s`);
+                    playVideo(calculatedIndex, calculatedSeekTime);
+                } else {
+                    console.warn('Could not determine resume point. Starting from beginning.');
+                    playVideo(0);
+                }
+            } else {
+                // No saved state, start from the beginning
+                console.log('No saved state found. Starting from the beginning.');
+                playVideo(0);
+            }
+        }
+
+        // Save state before user leaves or refreshes the page
+        window.addEventListener('beforeunload', saveChannelState);
+
+        // Initiate fetching the playlist when the page loads
+        fetchPlaylist();
     </script>
-
 </body>
 </html>
