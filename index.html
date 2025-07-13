@@ -1,289 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live TV Player</title>
-    <style>
-        /* --- CSS STYLES --- */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-
-        header {
-            background-color: #333;
-            color: #fff;
-            padding: 1rem 0;
-            text-align: center;
-        }
-
-        main {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
-            padding: 20px;
-            flex-grow: 1;
-        }
-
-        .video-player-container {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            width: 100%;
-            max-width: 900px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-
-        #videoPlayer {
-            width: 100%;
-            height: auto; /* Maintain aspect ratio */
-            max-height: 500px; /* Adjust as needed */
-            background-color: black;
-            border-radius: 4px;
-            display: block; /* Ensure it takes full width */
-            margin-bottom: 15px;
-        }
-
-        #iframeContainer {
-            width: 100%;
-            height: 500px; /* Or set dynamically based on content */
-            border: none;
-            background-color: black;
-            border-radius: 4px;
-            margin-bottom: 15px;
-        }
-
-        #iframeContainer iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-
-        #currentChannelTitle {
-            margin-top: 0;
-            color: #007bff;
-        }
-
-        .channel-list-container {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            width: 100%;
-            max-width: 400px;
-            box-sizing: border-box;
-        }
-
-        #channelList {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        #channelList li {
-            background-color: #f9f9f9;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            margin-bottom: 8px;
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        #channelList li:hover {
-            background-color: #e2e2e2;
-        }
-
-        #channelList li.active {
-            background-color: #007bff;
-            color: #fff;
-            font-weight: bold;
-        }
-
-        #channelList li button {
-            background-color: #007bff;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        #channelList li button:hover {
-            background-color: #0056b3;
-        }
-
-        footer {
-            background-color: #333;
-            color: #fff;
-            text-align: center;
-            padding: 1rem 0;
-            margin-top: auto;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            main {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .video-player-container, .channel-list-container {
-                max-width: 100%;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MSTV Channel</title>
+  <style>
+    body { background: #000; color: #fff; font-family: sans-serif; text-align: center; }
+    #playerContainer { position: relative; width: 90vw; max-width: 800px; margin: auto; }
+    iframe, video { width: 100%; height: 450px; border: none; display: none; background: #000; }
+    #title { margin-top: 15px; font-size: 18px; }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>Live TV Channels</h1>
-    </header>
 
-    <main>
-        <section class="video-player-container">
-            <video id="videoPlayer" controls autoplay muted></video>
-            <div id="iframeContainer" style="display:none;">
-                </div>
-            <h2 id="currentChannelTitle">Select a Channel</h2>
-        </section>
+  <h1>📺 MSTV Channel</h1>
+  <div id="title">Loading...</div>
 
-        <section class="channel-list-container">
-            <h2>Available Channels</h2>
-            <ul id="channelList">
-                </ul>
-        </section>
-    </main>
+  <div id="playerContainer">
+    <iframe id="embedPlayer" allowfullscreen></iframe>
+    <video id="videoPlayer" autoplay muted playsinline></video>
+  </div>
 
-    <footer>
-        <p>© 2025 Live TV Player</p>
-    </footer>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    let playlist = [];
+    let currentIndex = 0;
+    let hls;
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script>
-        // --- JAVASCRIPT LOGIC ---
-        document.addEventListener('DOMContentLoaded', () => {
-            const videoPlayer = document.getElementById('videoPlayer');
-            const iframeContainer = document.getElementById('iframeContainer');
-            const currentChannelTitle = document.getElementById('currentChannelTitle');
-            const channelList = document.getElementById('channelList');
+    async function loadPlaylist() {
+      const response = await fetch("playlist.json"); // update to your hosted JSON URL
+      playlist = await response.json();
+      playCurrent();
+    }
 
-            let hls = null; // To manage the HLS.js instance
+    function playCurrent() {
+      const embed = document.getElementById("embedPlayer");
+      const video = document.getElementById("videoPlayer");
+      const current = playlist[currentIndex];
+      document.getElementById("title").textContent = current.title;
 
-            // Function to load and play a video
-            function loadChannel(channel) {
-                // Hide iframe and show video player by default
-                iframeContainer.style.display = 'none';
-                videoPlayer.style.display = 'block';
-                videoPlayer.src = ''; // Clear previous source
-                currentChannelTitle.textContent = channel.name;
+      // Reset players
+      embed.style.display = "none";
+      video.style.display = "none";
+      embed.src = "";
+      video.pause();
+      video.removeAttribute("src");
+      if (hls) { hls.destroy(); hls = null; }
 
-                // Destroy existing HLS instance if it exists
-                if (hls) {
-                    hls.destroy();
-                    hls = null;
-                }
+      // Choose player type
+      if (current.type === "embed") {
+        embed.src = current.url;
+        embed.style.display = "block";
+        // Embed fallback: auto-next after fixed time
+        setTimeout(nextVideo, 120000); // 2 min per embed
+      } else {
+        video.style.display = "block";
 
-                if (channel.type === 'm3u8') {
-                    if (Hls.isSupported()) {
-                        hls = new Hls();
-                        hls.loadSource(channel.url);
-                        hls.attachMedia(videoPlayer);
-                        hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                            videoPlayer.play();
-                        });
-                        hls.on(Hls.Events.ERROR, function (event, data) {
-                            if (data.fatal) {
-                                switch (data.type) {
-                                    case Hls.ErrorTypes.NETWORK_ERROR:
-                                        console.error('fatal network error encountered, try to recover', data);
-                                        hls.startLoad();
-                                        break;
-                                    case Hls.ErrorTypes.MEDIA_ERROR:
-                                        console.error('fatal media error encountered, try to recover', data);
-                                        hls.recoverMediaError();
-                                        break;
-                                    default:
-                                        console.error('fatal error, cannot recover', data);
-                                        hls.destroy();
-                                        break;
-                                }
-                            }
-                        });
-                    } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                        // For browsers that natively support HLS (e.g., Safari)
-                        videoPlayer.src = channel.url;
-                        videoPlayer.addEventListener('loadedmetadata', function() {
-                            videoPlayer.play();
-                        });
-                    } else {
-                        alert('Your browser does not support HLS video playback.');
-                    }
-                } else if (channel.type === 'iframe') {
-                    videoPlayer.style.display = 'none'; // Hide video player
-                    iframeContainer.style.display = 'block'; // Show iframe container
-                    iframeContainer.innerHTML = `<iframe src="${channel.url}" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
-                } else {
-                    console.error('Unknown channel type:', channel.type);
-                    alert('This channel type is not supported.');
-                }
+        if (current.type === "m3u8") {
+          if (Hls.isSupported()) {
+            hls = new Hls();
+            hls.loadSource(current.url);
+            hls.attachMedia(video);
+          } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = current.url;
+          } else {
+            alert("HLS not supported in this browser.");
+            nextVideo(); return;
+          }
+        } else if (current.type === "mp4") {
+          video.src = current.url;
+        }
 
-                // Update active class for channel list items
-                const currentActive = document.querySelector('.channel-list-container li.active');
-                if (currentActive) {
-                    currentActive.classList.remove('active');
-                }
-                document.querySelector(`li[data-channel-id="${channel.id}"]`).classList.add('active');
-            }
+        video.onended = nextVideo;
+        video.play();
+      }
+    }
 
-            // Fetch channels from the mstv5/playlist.json file
-            fetch('mstv5/playlist.json') // THIS LINE IS UPDATED
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(channels => {
-                    // Populate the channel list
-                    if (channels.length > 0) {
-                        channels.forEach(channel => {
-                            const listItem = document.createElement('li');
-                            listItem.dataset.channelId = channel.id; // Store ID for easy lookup
-                            listItem.innerHTML = `
-                                <span>${channel.name}</span>
-                                <button>Play</button>
-                            `;
-                            listItem.querySelector('button').addEventListener('click', () => {
-                                loadChannel(channel);
-                            });
-                            channelList.appendChild(listItem);
-                        });
+    function nextVideo() {
+      currentIndex = (currentIndex + 1) % playlist.length;
+      playCurrent();
+    }
 
-                        // Auto-play the first channel
-                        loadChannel(channels[0]);
-                    } else {
-                        channelList.innerHTML = '<li>No channels found in playlist.json.</li>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching channels:', error);
-                    channelList.innerHTML = `<li>Error loading channels: ${error.message}. Please ensure 'mstv5/playlist.json' exists and is accessible.</li>`;
-                });
-        });
-    </script>
+    loadPlaylist();
+  </script>
+
 </body>
 </html>
