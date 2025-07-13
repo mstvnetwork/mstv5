@@ -2,36 +2,46 @@
   "timezone": "Asia/Kolkata",
   "schedule": [
     {
-      "start_time": "06:08",
-      "end_time": "06:09",
-      "content_type": "Morning News (HLS)",
+      "start_time": "06:10:00",
+      "end_time": "06:10:50",
+      "content_type": "IST Morning News (MP4)",
+      "video_urls": ["https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"]
+    },
+    {
+      "start_time": "06:10:50",
+      "end_time": "06:11:40",
+      "content_type": "IST Daily Special (HLS)",
       "video_urls": ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"]
     },
     {
-      "start_time": "06:09",
-      "end_time": "06:10",
-      "content_type": "Daily Documentary (MP4)",
-      "video_urls": [
-        "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
-        "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-      ]
+      "start_time": "06:11:40",
+      "end_time": "06:12:30",
+      "content_type": "IST Documentary (MP4)",
+      "video_urls": ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"]
     },
     {
-      "start_time": "06:10",
-      "end_time": "06:11",
-      "content_type": "Live Stream (HLS)",
+      "start_time": "06:12:30",
+      "end_time": "06:13:20",
+      "content_type": "IST Live Feed (HLS)",
       "video_urls": ["https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8"]
     },
     {
-      "start_time": "06:11",
-      "end_time": "06:12",
-      "content_type": "Music Videos",
-      "video_urls": [
-        "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4",
-        "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
-      ]
+      "start_time": "06:13:20",
+      "end_time": "06:14:10",
+      "content_type": "IST Short Film (MP4)",
+      "video_urls": ["https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"]
+    },
+    {
+      "start_time": "06:14:10",
+      "end_time": "06:15:00",
+      "content_type": "IST Music Showcase (HLS)",
+      "video_urls": ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"]
+    },
+    {
+      "start_time": "06:15:00",
+      "end_time": "06:15:50",
+      "content_type": "IST Program X (MP4)",
+      "video_urls": ["https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4"]
     }
-    
-  ]
+    ]
 }
-
