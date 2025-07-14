@@ -1,77 +1,99 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>Embed Player</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0;
-      background: black;
-      overflow: hidden;
-    }
-    video {
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      background: #000;
-    }
-    #overlay {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: sans-serif;
-      font-size: 16px;
-    }
-  </style>
-</head>
-<body>
-  <div id="overlay">Loading...</div>
-  <video id="player" autoplay playsinline></video>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Playlist</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    async function getChannelData() {
-      const params = new URLSearchParams(window.location.search);
-      const id = params.get("id");
-
-      const res = await fetch("channels.json"); // use full URL if needed
-      const data = await res.json();
-
-      if (!data[id]) {
-        document.getElementById('overlay').textContent = "Channel not found.";
-        return;
-      }
-
-      const { title, url, type } = data[id];
-      const video = document.getElementById("player");
-      const overlay = document.getElementById("overlay");
-
-      overlay.textContent = title;
-
-      if (type === "m3u8") {
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(url);
-          hls.attachMedia(video);
-        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = url;
-        } else {
-          overlay.textContent = "HLS not supported.";
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
         }
-      } else if (type === "mp4") {
-        video.src = url;
-      }
 
-      // Try to unmute after load
-      video.muted = false;
-      video.play().catch(() => {
-        overlay.textContent += " (click to play)";
-        video.addEventListener("click", () => video.play());
-      });
-    }
+        #video-container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
 
-    getChannelData();
-  </script>
+        video {
+            width: 100%;
+            height: auto;
+        }
+
+        p {
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="video-container">
+        <video id="video-player" width="640" controls></video>
+        <p id="video-title">Loading...</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const videoElement = document.getElementById('video-player');
+            const videoTitleElement = document.getElementById('video-title');
+            let videoIndex = 0;
+            let videoList = [];
+
+            // Function to load the next video
+            function loadVideo() {
+                if (videoIndex < videoList.length) {
+                    const video = videoList[videoIndex];
+                    videoTitleElement.textContent = `Playing: ${video.title}`;
+
+                    if (Hls.isSupported()) {
+                        const hls = new Hls();
+                        hls.loadSource(video.url);
+                        hls.attachMedia(videoElement);
+                        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+                            videoElement.play();
+                        });
+
+                        // Play next video when current finishes
+                        videoElement.onended = function () {
+                            videoIndex++;
+                            loadVideo();
+                        };
+                    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                        videoElement.src = video.url;
+                        videoElement.play();
+
+                        // Play next video when current finishes
+                        videoElement.onended = function () {
+                            videoIndex++;
+                            loadVideo();
+                        };
+                    }
+                } else {
+                    videoTitleElement.textContent = "All videos have been played!";
+                }
+            }
+
+            // Fetch video URLs from the JSON file
+            fetch('videos.json')
+                .then(response => response.json())
+                .then(data => {
+                    videoList = data.videos;
+                    loadVideo();  // Start playing the first video
+                })
+                .catch(error => console.error("Error loading video list:", error));
+        });
+    </script>
 </body>
+
 </html>
