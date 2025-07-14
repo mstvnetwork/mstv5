@@ -1,0 +1,16 @@
+{
+  "videos": [
+    {
+      "title": "First Video",
+      "url": "https://kitabmarkaz.xyz/e/8hyvntq0rrsg"
+    },
+    {
+      "title": "Second Video",
+      "url": "https://example.com/video2.m3u8"
+    },
+    {
+      "title": "Third Video",
+      "url": "https://example.com/video3.m3u8"
+    }
+  ]
+}
