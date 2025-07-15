@@ -1,99 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Playlist</title>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-
-        #video-container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        video {
-            width: 100%;
-            height: auto;
-        }
-
-        p {
-            font-size: 18px;
-            color: #333;
-        }
-    </style>
-
+  <meta charset="UTF-8" />
+  <title>MSTV5 Network Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+    }
+    #video {
+      width: 100%;
+      max-width: 960px;
+      height: auto;
+      background: black;
+    }
+    #unmuteBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 10;
+      padding: 8px 14px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: rgba(255,255,255,0.15);
+      border: none;
+      color: white;
+      border-radius: 5px;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    #unmuteBtn:hover {
+      background-color: rgba(255,255,255,0.35);
+    }
+  </style>
 </head>
-
 <body>
-    <div id="video-container">
-        <video id="video-player" width="640" controls></video>
-        <p id="video-title">Loading...</p>
-    </div>
+  <video id="video" muted autoplay playsinline controls></video>
+  <button id="unmuteBtn">🔈 Unmute</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const videoElement = document.getElementById('video-player');
-            const videoTitleElement = document.getElementById('video-title');
-            let videoIndex = 0;
-            let videoList = [];
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    const video = document.getElementById('video');
+    const unmuteBtn = document.getElementById('unmuteBtn');
 
-            // Function to load the next video
-            function loadVideo() {
-                if (videoIndex < videoList.length) {
-                    const video = videoList[videoIndex];
-                    videoTitleElement.textContent = `Playing: ${video.title}`;
+    // Replace with your actual .m3u8 URL
+    const streamUrl = 'https://stream.fushaar.link/movie/48727/48727-240p.mp4/playlist.m3u8?wmsAuthSign=c2VydmVyX3RpbWU9Ny8xMy8yMDI1IDM6MDE6MTkgUE0maGFzaF92YWx1ZT04TUVEQ0ZNMm9YdUFxRTJCaGFWaUZBPT0mdmFsaWRtaW51dGVzPTQ1MA==';
 
-                    if (Hls.isSupported()) {
-                        const hls = new Hls();
-                        hls.loadSource(video.url);
-                        hls.attachMedia(videoElement);
-                        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-                            videoElement.play();
-                        });
-
-                        // Play next video when current finishes
-                        videoElement.onended = function () {
-                            videoIndex++;
-                            loadVideo();
-                        };
-                    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                        videoElement.src = video.url;
-                        videoElement.play();
-
-                        // Play next video when current finishes
-                        videoElement.onended = function () {
-                            videoIndex++;
-                            loadVideo();
-                        };
-                    }
-                } else {
-                    videoTitleElement.textContent = "All videos have been played!";
-                }
-            }
-
-            // Fetch video URLs from the JSON file
-            fetch('videos.json')
-                .then(response => response.json())
-                .then(data => {
-                    videoList = data.videos;
-                    loadVideo();  // Start playing the first video
-                })
-                .catch(error => console.error("Error loading video list:", error));
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(streamUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(e => {
+          console.log('Autoplay prevented:', e);
         });
-    </script>
-</body>
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = streamUrl;
+      video.addEventListener('loadedmetadata', () => {
+        video.play().catch(e => {
+          console.log('Autoplay prevented:', e);
+        });
+      });
+    } else {
+      alert('HLS not supported on this browser');
+    }
 
+    unmuteBtn.addEventListener('click', () => {
+      if (video.muted) {
+        video.muted = false;
+        unmuteBtn.textContent = '🔇 Mute';
+      } else {
+        video.muted = true;
+        unmuteBtn.textContent = '🔈 Unmute';
+      }
+    });
+  </script>
+</body>
 </html>
