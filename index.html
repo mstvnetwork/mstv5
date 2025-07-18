@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Time-synced Live TV Playlist</title>
+  <title>Live TV Playlist (24h format)</title>
   <style>
     body {
       margin: 0;
@@ -25,24 +25,32 @@
   <iframe id="playerIframe" src="" allowfullscreen></iframe>
 
   <script>
-    // Your playlist with schedule and URLs (replace with your own)
+    // Helper to create Date for today at given HH:MM string, local time
+    function todayAt(timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d;
+    }
+
+    // Playlist with 24h schedule times (today's date is assumed)
     const playlist = [
       {
         url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        startTime: "2025-07-18T08:00:00+10:00",
-        endTime: "2025-07-18T08:30:00+10:00"
+        startTime: "01:52",
+        endTime: "01:53"
       },
       {
         url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-        startTime: "2025-07-18T08:30:00+10:00",
-        endTime: "2025-07-18T09:00:00+10:00"
+        startTime: "01:53",
+        endTime: "01:54"
       }
     ];
 
     function findCurrentStream(now) {
       for (const item of playlist) {
-        const start = new Date(item.startTime);
-        const end = new Date(item.endTime);
+        const start = todayAt(item.startTime);
+        const end = todayAt(item.endTime);
         if (now >= start && now < end) {
           return { url: item.url, offset: (now - start) / 1000 };
         }
@@ -60,13 +68,11 @@
         return;
       }
 
-      // player.html is your custom player page
       const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
       iframe.src = src;
     }
 
     setIframeSrc();
-    // Refresh iframe every minute to switch stream if needed
     setInterval(setIframeSrc, 60000);
   </script>
 
