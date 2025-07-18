@@ -4,54 +4,94 @@
   <meta charset="UTF-8" />
   <title>HLS Player</title>
   <style>
-    body, html {
-      margin: 0; padding: 0; height: 100%; background: black; display: flex; justify-content: center; align-items: center;
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: black;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     video {
       width: 100%;
       height: 100%;
       background: black;
     }
+    #unmuteOverlay {
+      position: absolute;
+      z-index: 10;
+      width: 80px;
+      height: 80px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: opacity 0.3s;
+    }
+    #unmuteOverlay img {
+      width: 40px;
+      height: 40px;
+    }
+    #unmuteOverlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
-  <video id="video" controls autoplay muted></video>
+  <video id="video" autoplay muted playsinline></video>
+
+  <div id="unmuteOverlay">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6c/Speaker_Icon.svg" alt="Tap to unmute">
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    // Parse URL parameters
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
-
     const video = document.getElementById("video");
+    const overlay = document.getElementById("unmuteOverlay");
 
+    // Center overlay
+    function positionOverlay() {
+      overlay.style.top = `${(window.innerHeight - overlay.offsetHeight) / 2}px`;
+      overlay.style.left = `${(window.innerWidth - overlay.offsetWidth) / 2}px`;
+    }
+    window.addEventListener("resize", positionOverlay);
+    positionOverlay();
+
+    // Unmute on tap
+    overlay.addEventListener("click", () => {
+      video.muted = false;
+      overlay.classList.add("hidden");
+    });
+
+    // Load stream
     if (!url) {
-      video.insertAdjacentHTML("afterend", "<p style='color:white;'>No stream URL provided.</p>");
-      throw new Error("No URL");
+      document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
+      throw new Error("Missing URL");
+    }
+
+    function playVideoWithOffset() {
+      video.currentTime = offset;
+      video.play().catch(err => console.warn("Autoplay blocked:", err));
     }
 
     if (Hls.isSupported()) {
       const hls = new Hls();
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function() {
-        // Try to seek to offset seconds after manifest loaded
-        video.currentTime = offset;
-        video.play();
-      });
-      hls.on(Hls.Events.ERROR, function(event, data) {
-        console.error("HLS.js error:", data);
-      });
+      hls.on(Hls.Events.MANIFEST_PARSED, playVideoWithOffset);
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      // Native HLS support (Safari)
       video.src = url;
-      video.addEventListener("loadedmetadata", () => {
-        video.currentTime = offset;
-        video.play();
-      });
+      video.addEventListener("loadedmetadata", playVideoWithOffset);
     } else {
-      video.insertAdjacentHTML("afterend", "<p style='color:white;'>HLS not supported in this browser.</p>");
+      document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
     }
   </script>
 </body>
