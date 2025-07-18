@@ -54,7 +54,11 @@
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
 
-    // Handle toggle
+    // Set initial mute state from sessionStorage (persistent across iframe reloads)
+    const savedMuteState = sessionStorage.getItem("playerMuted");
+    video.muted = savedMuteState === null ? true : savedMuteState === "true";
+
+    // Update speaker emoji icon based on mute state
     function updateSpeakerIcon() {
       speakerToggle.textContent = video.muted ? "🔇" : "🔊";
       speakerToggle.classList.toggle("hidden", !video.muted);
@@ -62,10 +66,11 @@
 
     speakerToggle.addEventListener("click", () => {
       video.muted = !video.muted;
+      sessionStorage.setItem("playerMuted", video.muted);
       updateSpeakerIcon();
     });
 
-    // HLS playback
+    // Play video starting from offset
     function playVideoWithOffset() {
       video.currentTime = offset;
       video.play().catch(err => console.warn("Autoplay blocked:", err));
@@ -88,7 +93,7 @@
       document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
     }
 
-    // Initial icon state
+    // Set initial icon state
     updateSpeakerIcon();
   </script>
 </body>
