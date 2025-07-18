@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>MSTV Player</title>
   <style>
     body {
@@ -55,8 +55,7 @@
 <script>
   const params = new URLSearchParams(location.search);
   const ch = params.get("ch") || "1";
-  const jsonUrl = "https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json
-"; // Change to your real URL
+  const jsonUrl = "https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json";
   const video = document.getElementById("video");
   const iframe = document.getElementById("iframe");
   const muteBtn = document.getElementById("muteToggle");
@@ -83,15 +82,26 @@
     return null;
   }
 
-  fetch('https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json'
-    )
-    .then(res => res.json())
+  fetch(jsonUrl)
+    .then(res => {
+      if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
+      return res.json();
+    })
     .then(data => {
+      console.log("Channels JSON loaded:", data);
       const schedule = data[ch];
-      if (!schedule) return alert("Channel not found.");
+      if (!schedule) {
+        alert("Channel not found.");
+        console.error("Channel playlist missing for:", ch);
+        return;
+      }
 
       const streamUrl = getCurrentUrl(schedule);
-      if (!streamUrl) return alert("Off Air");
+      if (!streamUrl) {
+        alert("Off Air");
+        console.log("No matching segment for current time.");
+        return;
+      }
 
       if (streamUrl.endsWith(".m3u8")) {
         iframe.style.display = "none";
@@ -113,6 +123,10 @@
         iframe.style.display = "block";
         iframe.src = streamUrl;
       }
+    })
+    .catch(err => {
+      alert("Failed to load channels.json");
+      console.error("Fetch error:", err);
     });
 </script>
 </body>
