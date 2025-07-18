@@ -10,33 +10,30 @@
       background: black;
       height: 100%;
       overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
-    video {
+
+    #video {
       width: 100%;
       height: 100%;
       background: black;
     }
-    #unmuteOverlay {
+
+    #speakerToggle {
       position: absolute;
-      z-index: 10;
-      width: 80px;
-      height: 80px;
-      background: rgba(0,0,0,0.6);
+      top: 12px;
+      right: 12px;
+      font-size: 28px;
+      background: rgba(0, 0, 0, 0.5);
       border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      padding: 8px;
       cursor: pointer;
+      user-select: none;
+      z-index: 10;
+      color: white;
       transition: opacity 0.3s;
     }
-    #unmuteOverlay img {
-      width: 40px;
-      height: 40px;
-    }
-    #unmuteOverlay.hidden {
+
+    #speakerToggle.hidden {
       opacity: 0;
       pointer-events: none;
     }
@@ -45,41 +42,38 @@
 <body>
   <video id="video" autoplay muted playsinline></video>
 
-  <div id="unmuteOverlay">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6c/Speaker_Icon.svg" alt="Tap to unmute">
-  </div>
+  <!-- Emoji Speaker Button -->
+  <div id="speakerToggle">🔇</div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
+    const video = document.getElementById("video");
+    const speakerToggle = document.getElementById("speakerToggle");
+
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
-    const video = document.getElementById("video");
-    const overlay = document.getElementById("unmuteOverlay");
 
-    // Center overlay
-    function positionOverlay() {
-      overlay.style.top = `${(window.innerHeight - overlay.offsetHeight) / 2}px`;
-      overlay.style.left = `${(window.innerWidth - overlay.offsetWidth) / 2}px`;
+    // Handle toggle
+    function updateSpeakerIcon() {
+      speakerToggle.textContent = video.muted ? "🔇" : "🔊";
+      speakerToggle.classList.toggle("hidden", !video.muted);
     }
-    window.addEventListener("resize", positionOverlay);
-    positionOverlay();
 
-    // Unmute on tap
-    overlay.addEventListener("click", () => {
-      video.muted = false;
-      overlay.classList.add("hidden");
+    speakerToggle.addEventListener("click", () => {
+      video.muted = !video.muted;
+      updateSpeakerIcon();
     });
 
-    // Load stream
-    if (!url) {
-      document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
-      throw new Error("Missing URL");
-    }
-
+    // HLS playback
     function playVideoWithOffset() {
       video.currentTime = offset;
       video.play().catch(err => console.warn("Autoplay blocked:", err));
+    }
+
+    if (!url) {
+      document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
+      throw new Error("Missing URL");
     }
 
     if (Hls.isSupported()) {
@@ -93,6 +87,9 @@
     } else {
       document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
     }
+
+    // Initial icon state
+    updateSpeakerIcon();
   </script>
 </body>
 </html>
