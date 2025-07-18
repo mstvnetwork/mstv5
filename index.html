@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Iframe Test</title>
+  <meta charset="UTF-8" />
+  <title>Time-synced Live TV Playlist</title>
   <style>
     body {
       margin: 0;
       background: #000;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       height: 100vh;
     }
     iframe {
@@ -17,17 +17,58 @@
       height: 50vh;
       border: 4px solid gold;
       border-radius: 10px;
-      background: black;
     }
   </style>
 </head>
 <body>
 
-  <iframe 
-    src="https://cdn3.einthusan.io/etv/content/D19oD.mp4.m3u8?e=1752869925&md5=LokEFb2u765X8c72RvLolg"
-    allowfullscreen
-    allow="autoplay"
-  ></iframe>
+  <iframe id="playerIframe" src="" allowfullscreen></iframe>
+
+  <script>
+    // Your playlist with schedule and URLs (replace with your own)
+    const playlist = [
+      {
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        startTime: "2025-07-18T08:00:00+10:00",
+        endTime: "2025-07-18T08:30:00+10:00"
+      },
+      {
+        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+        startTime: "2025-07-18T08:30:00+10:00",
+        endTime: "2025-07-18T09:00:00+10:00"
+      }
+    ];
+
+    function findCurrentStream(now) {
+      for (const item of playlist) {
+        const start = new Date(item.startTime);
+        const end = new Date(item.endTime);
+        if (now >= start && now < end) {
+          return { url: item.url, offset: (now - start) / 1000 };
+        }
+      }
+      return null;
+    }
+
+    function setIframeSrc() {
+      const now = new Date();
+      const stream = findCurrentStream(now);
+      const iframe = document.getElementById("playerIframe");
+
+      if (!stream) {
+        iframe.src = ""; // no stream right now
+        return;
+      }
+
+      // player.html is your custom player page
+      const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
+      iframe.src = src;
+    }
+
+    setIframeSrc();
+    // Refresh iframe every minute to switch stream if needed
+    setInterval(setIframeSrc, 60000);
+  </script>
 
 </body>
 </html>
