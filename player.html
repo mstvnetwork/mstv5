@@ -55,7 +55,8 @@
 <script>
   const params = new URLSearchParams(location.search);
   const ch = params.get("ch") || "1";
-  const jsonUrl = "https://yourdomain.netlify.app/channels.json"; // Change to your real URL
+  const jsonUrl = "https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json
+"; // Change to your real URL
   const video = document.getElementById("video");
   const iframe = document.getElementById("iframe");
   const muteBtn = document.getElementById("muteToggle");
@@ -82,7 +83,8 @@
     return null;
   }
 
-  fetch(jsonUrl)
+  fetch('https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json'
+    )
     .then(res => res.json())
     .then(data => {
       const schedule = data[ch];
