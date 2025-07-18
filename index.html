@@ -3,129 +3,115 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MSTV Live Channel</title>
+  <title>MSTV Network</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
   <style>
     body {
+      margin: 0;
       background: black;
       color: white;
-      font-family: sans-serif;
+      font-family: Arial, sans-serif;
       text-align: center;
+    }
+    #videoContainer {
+      position: relative;
+      width: 100%;
+      max-width: 960px;
+      margin: 20px auto;
+      border: 4px solid gold;
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      background: #111;
     }
     video {
       width: 100%;
-      max-width: 800px;
-      height: auto;
-      background: #000;
-      outline: none;
+      height: 100%;
+      background: black;
     }
-    #offAir {
+    .off-air {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-size: 2em;
       color: red;
-      font-size: 1.5rem;
-      margin-top: 20px;
+      background: black;
     }
   </style>
 </head>
 <body>
-  <h1>MSTV Network</h1>
-  <video id="videoPlayer" controls autoplay muted playsinline></video>
-  <div id="offAir" style="display: none;">Currently Off Air</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <h1>MSTV Live Channel</h1>
+  <div id="videoContainer">
+    <video id="video" controls autoplay muted playsinline></video>
+  </div>
+
   <script>
-    const video = document.getElementById('videoPlayer');
-    const offAir = document.getElementById('offAir');
-    const urlParams = new URLSearchParams(window.location.search);
-    const channelId = urlParams.get('ch') || "1";
+    const { DateTime } = luxon;
 
-    // HARD-CODED MULTICHANNEL SCHEDULE
-    const channelData = {
+    const urlParams = new URLSearchParams(window.location.search);
+    const channel = urlParams.get("ch") || "1";
+
+    const schedule = {
       "1": [
-        { startTime: "08:44", endTime: "08:45", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
-        { startTime: "08:45", endTime: "08:46", url: "https://moiptvhls-i.akamaihd.net/hls/live/652316/secure/demo.m3u8" }
+        { startTime: "08:59", endTime: "09:00", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
+        { startTime: "09:01", endTime: "09:02", url: "https://moiptvhls-i.akamaihd.net/hls/live/652316/secure/demo.m3u8" }
       ],
       "2": [
-        { startTime: "08:46", endTime: "08:48", url: "http://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8" }
-      ],
-      "3": [
-        { startTime: "08:46", endTime: "08:48", url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8" }
+        { startTime: "08:56", endTime: "08:58", url: "https://moiptvhls-i.akamaihd.net/hls/live/652316/secure/demo.m3u8" }
       ]
     };
 
-    function getCurrentTimeInMinutes() {
-      const now = new Date();
-      return now.getHours() * 60 + now.getMinutes();
+    const now = DateTime.now().setZone("Australia/Melbourne");
+    const currentTimeStr = now.toFormat("HH:mm");
+    const currentSchedule = schedule[channel];
+
+    let currentItem = null;
+
+    if (currentSchedule) {
+      currentItem = currentSchedule.find(item => {
+        return currentTimeStr >= item.startTime && currentTimeStr < item.endTime;
+      });
     }
 
-    function parseTimeToMinutes(timeStr) {
-      const [h, m] = timeStr.split(":").map(Number);
-      return h * 60 + m;
-    }
+    const container = document.getElementById("videoContainer");
+    const video = document.getElementById("video");
 
-    function getCurrentItem(schedule) {
-      const currentMinutes = getCurrentTimeInMinutes();
-      for (let i = 0; i < schedule.length; i++) {
-        const start = parseTimeToMinutes(schedule[i].startTime);
-        const end = parseTimeToMinutes(schedule[i].endTime);
-        if (currentMinutes >= start && currentMinutes < end) {
-          return {
-            ...schedule[i],
-            offsetSeconds: (currentMinutes - start) * 60 + new Date().getSeconds(),
-            endInSeconds: (end - currentMinutes) * 60 - new Date().getSeconds()
-          };
-        }
-      }
-      return null;
-    }
+    if (currentItem) {
+      const hlsSupported = Hls.isSupported();
+      const source = currentItem.url;
+      const startDateTime = DateTime.fromFormat(currentItem.startTime, "HH:mm", { zone: "Australia/Melbourne" });
+      const elapsed = Math.max(0, (now - startDateTime) / 1000);
 
-    function playHLS(url, offsetSeconds, endInSeconds) {
-      if (Hls.isSupported()) {
+      if (hlsSupported) {
         const hls = new Hls();
-        hls.loadSource(url);
+        hls.loadSource(source);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.currentTime = offsetSeconds;
+          video.currentTime = elapsed;
           video.play();
         });
-
-        setTimeout(() => {
-          video.pause();
-          offAir.style.display = "block";
-        }, endInSeconds * 1000);
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.currentTime = offsetSeconds;
-        video.play();
-
-        setTimeout(() => {
-          video.pause();
-          offAir.style.display = "block";
-        }, endInSeconds * 1000);
-      }
-    }
-
-    function startPlayback() {
-      const schedule = channelData[channelId];
-      if (!schedule) {
-        offAir.innerText = "Channel Not Found";
-        offAir.style.display = "block";
-        return;
-      }
-
-      const currentItem = getCurrentItem(schedule);
-
-      if (currentItem) {
-        offAir.style.display = "none";
-        playHLS(currentItem.url, currentItem.offsetSeconds, currentItem.endInSeconds);
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = source;
+        video.addEventListener("loadedmetadata", () => {
+          video.currentTime = elapsed;
+          video.play();
+        });
       } else {
-        offAir.innerText = "Currently Off Air";
-        offAir.style.display = "block";
-        video.pause();
-        video.removeAttribute("src");
+        container.innerHTML = "<div class='off-air'>HLS Not Supported</div>";
       }
-    }
 
-    startPlayback();
-    setInterval(startPlayback, 60000); // Check every 1 minute for new slot
+      // Auto-reload at endTime to load next video
+      const endDateTime = DateTime.fromFormat(currentItem.endTime, "HH:mm", { zone: "Australia/Melbourne" });
+      const msToEnd = endDateTime.diff(now).as("milliseconds");
+      setTimeout(() => location.reload(), msToEnd);
+
+    } else {
+      container.innerHTML = "<div class='off-air'>Currently Off Air</div>";
+    }
   </script>
+
 </body>
 </html>
