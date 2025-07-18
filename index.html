@@ -52,7 +52,7 @@
 
     const jsonUrl = "https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json";
 
-    fetch(jsonUrl)
+    fetch('https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json')
       .then(res => res.json())
       .then(schedule => {
         const now = luxon.DateTime.now().setZone("Australia/Melbourne");
