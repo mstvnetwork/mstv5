@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MSTV Multi-Channel</title>
+  <title>Live TV Playlist (24h format)</title>
   <style>
     body {
       margin: 0;
       background: #000;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       height: 100vh;
     }
     iframe {
@@ -17,76 +17,64 @@
       height: 50vh;
       border: 4px solid gold;
       border-radius: 10px;
-      background: black;
-    }
-    #unmute-btn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 24px;
-      background: rgba(0, 0, 0, 0.5);
-      border: none;
-      color: white;
-      cursor: pointer;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <div style="position: relative;">
-    <button id="unmute-btn">🔇</button>
-    <iframe id="player" allow="autoplay" allowfullscreen></iframe>
-  </div>
+
+  <iframe id="playerIframe" src="" allowfullscreen></iframe>
 
   <script>
-    const params = new URLSearchParams(window.location.search);
-    const ch = params.get("ch") || "1"; // default to channel 1
-    const channelsUrl = "https://yourdomain.netlify.app/channels.json"; // UPDATE this with your real hosted JSON
+    // Helper to create Date for today at given HH:MM string, local time
+    function todayAt(timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d;
+    }
 
-    const player = document.getElementById("player");
-    const unmuteBtn = document.getElementById("unmute-btn");
-    let isMuted = true;
+    // Playlist with 24h schedule times (today's date is assumed)
+    const playlist = [
+      {
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        startTime: "08:00",
+        endTime: "08:30"
+      },
+      {
+        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+        startTime: "08:30",
+        endTime: "09:00"
+      }
+    ];
 
-    unmuteBtn.addEventListener("click", () => {
-      isMuted = !isMuted;
-      player.contentWindow.postMessage({ type: 'volume', muted: isMuted }, "*");
-      unmuteBtn.textContent = isMuted ? "🔇" : "🔊";
-    });
-
-    function getCurrentSegment(schedule) {
-      const now = new Date();
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-      for (const segment of schedule) {
-        const [startH, startM] = segment.startTime.split(":").map(Number);
-        const [endH, endM] = segment.endTime.split(":").map(Number);
-        const start = startH * 60 + startM;
-        const end = endH * 60 + endM;
-
-        if (currentMinutes >= start && currentMinutes < end) {
-          return segment.url;
+    function findCurrentStream(now) {
+      for (const item of playlist) {
+        const start = todayAt(item.startTime);
+        const end = todayAt(item.endTime);
+        if (now >= start && now < end) {
+          return { url: item.url, offset: (now - start) / 1000 };
         }
       }
-
       return null;
     }
 
-    fetch(channelsUrl)
-      .then(res => res.json())
-      .then(data => {
-        const playlist = data[ch];
-        if (!playlist) {
-          alert("Channel not found.");
-          return;
-        }
+    function setIframeSrc() {
+      const now = new Date();
+      const stream = findCurrentStream(now);
+      const iframe = document.getElementById("playerIframe");
 
-        const currentUrl = getCurrentSegment(playlist);
-        if (currentUrl) {
-          player.src = currentUrl;
-        } else {
-          player.src = "about:blank";
-        }
-      });
+      if (!stream) {
+        iframe.src = ""; // no stream right now
+        return;
+      }
+
+      const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
+      iframe.src = src;
+    }
+
+    setIframeSrc();
+    setInterval(setIframeSrc, 60000);
   </script>
+
 </body>
 </html>
