@@ -3,115 +3,106 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MSTV Network</title>
+  <title>MSTV NETWORK</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/luxon/3.4.3/luxon.min.js"></script>
   <style>
     body {
-      margin: 0;
-      background: black;
-      color: white;
-      font-family: Arial, sans-serif;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
       text-align: center;
+      padding: 10px;
     }
-    #videoContainer {
+    #player-container {
       position: relative;
       width: 100%;
-      max-width: 960px;
-      margin: 20px auto;
+      max-width: 720px;
+      margin: 0 auto;
       border: 4px solid gold;
       border-radius: 16px;
       overflow: hidden;
-      aspect-ratio: 16 / 9;
-      background: #111;
     }
-    video {
+    video, iframe {
       width: 100%;
-      height: 100%;
-      background: black;
+      height: 405px;
+      display: none;
     }
-    .off-air {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      font-size: 2em;
-      color: red;
-      background: black;
+    #nowPlaying {
+      margin-top: 10px;
+      font-size: 18px;
     }
   </style>
 </head>
 <body>
-
-  <h1>MSTV Live Channel</h1>
-  <div id="videoContainer">
-    <video id="video" controls autoplay muted playsinline></video>
+  <h1>MSTV NETWORK</h1>
+  <div id="player-container">
+    <video id="video" controls autoplay muted></video>
+    <iframe id="ytplayer" frameborder="0" allowfullscreen></iframe>
   </div>
+  <div id="nowPlaying">Loading schedule...</div>
 
   <script>
-    const { DateTime } = luxon;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const channel = urlParams.get("ch") || "1";
-
-    const schedule = {
-      "1": [
-        { startTime: "09:03", endTime: "09:04", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" },
-        { startTime: "09:04", endTime: "09:05", url: "https://moiptvhls-i.akamaihd.net/hls/live/652316/secure/demo.m3u8" }
-      ],
-      "2": [
-        { startTime: "08:56", endTime: "08:58", url: "https://moiptvhls-i.akamaihd.net/hls/live/652316/secure/demo.m3u8" }
-      ]
-    };
-
-    const now = DateTime.now().setZone("Australia/Melbourne");
-    const currentTimeStr = now.toFormat("HH:mm");
-    const currentSchedule = schedule[channel];
-
-    let currentItem = null;
-
-    if (currentSchedule) {
-      currentItem = currentSchedule.find(item => {
-        return currentTimeStr >= item.startTime && currentTimeStr < item.endTime;
-      });
-    }
-
-    const container = document.getElementById("videoContainer");
     const video = document.getElementById("video");
+    const ytplayer = document.getElementById("ytplayer");
+    const nowPlaying = document.getElementById("nowPlaying");
 
-    if (currentItem) {
-      const hlsSupported = Hls.isSupported();
-      const source = currentItem.url;
-      const startDateTime = DateTime.fromFormat(currentItem.startTime, "HH:mm", { zone: "Australia/Melbourne" });
-      const elapsed = Math.max(0, (now - startDateTime) / 1000);
+    const params = new URLSearchParams(window.location.search);
+    const channel = params.get("ch") || "1";
 
-      if (hlsSupported) {
-        const hls = new Hls();
-        hls.loadSource(source);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.currentTime = elapsed;
+    const jsonUrl = "https://raw.githubusercontent.com/mstvnetwork/mstv5/main/channels.json";
+
+    fetch(jsonUrl)
+      .then(res => res.json())
+      .then(schedule => {
+        const now = luxon.DateTime.now().setZone("Australia/Melbourne");
+        const currentTime = now.toFormat("HH:mm");
+
+        const currentChannel = schedule[channel];
+        if (!currentChannel) {
+          nowPlaying.textContent = `Channel ${channel} not found.`;
+          return;
+        }
+
+        const currentItem = currentChannel.find(item =>
+          currentTime >= item.startTime && currentTime < item.endTime
+        );
+
+        if (!currentItem) {
+          nowPlaying.textContent = `Currently Off-Air on Channel ${channel}`;
+          return;
+        }
+
+        nowPlaying.textContent = `Now Playing: ${currentItem.url}`;
+
+        if (currentItem.url.includes("youtube.com") || currentItem.url.includes("youtu.be")) {
+          ytplayer.style.display = "block";
+          video.style.display = "none";
+          const videoId = extractYouTubeID(currentItem.url);
+          ytplayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&playsinline=1`;
+        } else if (currentItem.url.endsWith(".m3u8")) {
+          ytplayer.style.display = "none";
+          video.style.display = "block";
+          if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(currentItem.url);
+            hls.attachMedia(video);
+          } else {
+            video.src = currentItem.url;
+          }
           video.play();
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = source;
-        video.addEventListener("loadedmetadata", () => {
-          video.currentTime = elapsed;
-          video.play();
-        });
-      } else {
-        container.innerHTML = "<div class='off-air'>HLS Not Supported</div>";
-      }
+        }
+      })
+      .catch(err => {
+        nowPlaying.textContent = "Error loading schedule.";
+        console.error(err);
+      });
 
-      // Auto-reload at endTime to load next video
-      const endDateTime = DateTime.fromFormat(currentItem.endTime, "HH:mm", { zone: "Australia/Melbourne" });
-      const msToEnd = endDateTime.diff(now).as("milliseconds");
-      setTimeout(() => location.reload(), msToEnd);
-
-    } else {
-      container.innerHTML = "<div class='off-air'>Currently Off Air</div>";
+    function extractYouTubeID(url) {
+      const regExp = /^.*(youtu\.be\/|v=)([^#&?]*).*/;
+      const match = url.match(regExp);
+      return match && match[2].length === 11 ? match[2] : null;
     }
   </script>
-
 </body>
 </html>
