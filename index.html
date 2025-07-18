@@ -2,131 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MSTV5 Player</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HLS Video Player</title>
   <style>
     body {
-      margin: 0;
-      background: #000;
+      background-color: #000;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
+      margin: 0;
     }
-    #video {
-      width: 100%;
-      max-width: 960px;
-      height: auto;
-      background: black;
-    }
-    #speakerIcon {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 10;
-      font-size: 24px;
-      color: white;
-      background: rgba(0,0,0,0.5);
-      border-radius: 50%;
-      padding: 8px;
-      cursor: pointer;
-      user-select: none;
-      transition: background 0.3s ease;
-    }
-    #speakerIcon:hover {
-      background: rgba(255,255,255,0.2);
-    }
-
-    /* Golden loading spinner */
-    #loadingOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: rgba(0, 0, 0, 0.8);
-    }
-
-    #loadingSpinner {
-      width: 60px;
-      height: 60px;
-      border: 6px solid gold;
-      border-top: 6px solid transparent;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 12px;
-    }
-
-    #loadingText {
-      color: gold;
-      font-size: 18px;
-      font-weight: bold;
-      font-family: Arial, sans-serif;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+    video {
+      width: 90%;
+      max-width: 720px;
+      border: 4px solid gold;
+      border-radius: 10px;
+      background-color: black;
     }
   </style>
 </head>
 <body>
 
-  <video id="video" autoplay muted playsinline></video>
-  <div id="speakerIcon">🔇</div>
-
-  <!-- Golden Loading Overlay -->
-  <div id="loadingOverlay">
-    <div id="loadingSpinner"></div>
-    <div id="loadingText">Loading stream...</div>
-  </div>
+  <video id="video" controls autoplay muted></video>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById('video');
-    const speakerIcon = document.getElementById('speakerIcon');
-    const loadingOverlay = document.getElementById('loadingOverlay');
+    const videoSrc = 'https://cdn3.einthusan.io/etv/content/D19oD.mp4.m3u8?e=1752869925&md5=LokEFb2u765X8c72RvLolg';
 
-    const streamUrl = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8'; // Replace with your real stream
-
-    // Toggle mute/unmute icon
-    speakerIcon.addEventListener('click', () => {
-      video.muted = !video.muted;
-      speakerIcon.textContent = video.muted ? '🔇' : '🔈';
-    });
-
-    // Hide overlay when video starts playing
-    function hideOverlayOnPlay() {
-      video.addEventListener('playing', () => {
-        loadingOverlay.style.display = 'none';
-      });
-    }
-
-    // Load HLS stream
     if (Hls.isSupported()) {
       const hls = new Hls();
-      hls.loadSource(streamUrl);
+      hls.loadSource(videoSrc);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(e => console.log('Autoplay blocked:', e));
-        hideOverlayOnPlay();
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        video.play();
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = streamUrl;
-      video.addEventListener('loadedmetadata', () => {
-        video.play().catch(e => console.log('Autoplay blocked:', e));
-        hideOverlayOnPlay();
+      video.src = videoSrc;
+      video.addEventListener('loadedmetadata', function () {
+        video.play();
       });
     } else {
-      alert('HLS not supported in this browser');
+      alert("Your browser does not support HLS playback.");
     }
   </script>
 
