@@ -8,18 +8,13 @@
       margin: 0;
       padding: 0;
       background: black;
-      width: 100%;
       height: 100%;
       overflow: hidden;
     }
 
     #video {
-      position: absolute;
-      top: 0;
-      left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
       background: black;
     }
 
@@ -45,20 +40,21 @@
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline muted></video>
+  <video id="video" autoplay muted playsinline></video>
+
+  <!-- Emoji Speaker Button -->
   <div id="speakerToggle">🔇</div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById("video");
     const speakerToggle = document.getElementById("speakerToggle");
+
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
 
-    const savedMuteState = sessionStorage.getItem("playerMuted");
-    video.muted = savedMuteState === null ? true : savedMuteState === "true";
-
+    // Handle toggle
     function updateSpeakerIcon() {
       speakerToggle.textContent = video.muted ? "🔇" : "🔊";
       speakerToggle.classList.toggle("hidden", !video.muted);
@@ -66,37 +62,13 @@
 
     speakerToggle.addEventListener("click", () => {
       video.muted = !video.muted;
-      sessionStorage.setItem("playerMuted", video.muted);
       updateSpeakerIcon();
     });
 
-    function tryPlay() {
-      video.play().catch(e => console.warn("Play failed:", e));
-    }
-
-    function loadVideoStream(finalURL) {
-      if (Hls.isSupported()) {
-        const hls = new Hls({ startPosition: -1 });
-        hls.loadSource(finalURL);
-        hls.attachMedia(video);
-
-        hls.on(Hls.Events.LEVEL_LOADED, () => {
-          if (offset > 0) video.currentTime = offset;
-          tryPlay();
-        });
-
-        window.addEventListener("beforeunload", () => {
-          hls.destroy();
-        });
-      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        video.src = finalURL;
-        video.addEventListener("loadedmetadata", () => {
-          if (offset > 0) video.currentTime = offset;
-          tryPlay();
-        });
-      } else {
-        document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
-      }
+    // HLS playback
+    function playVideoWithOffset() {
+      video.currentTime = offset;
+      video.play().catch(err => console.warn("Autoplay blocked:", err));
     }
 
     if (!url) {
@@ -104,9 +76,19 @@
       throw new Error("Missing URL");
     }
 
-    const finalURL = url + (url.includes("?") ? "&" : "?") + "nocache=" + Math.floor(Math.random() * 1000000);
-    loadVideoStream(finalURL);
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, playVideoWithOffset);
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = url;
+      video.addEventListener("loadedmetadata", playVideoWithOffset);
+    } else {
+      document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
+    }
 
+    // Initial icon state
     updateSpeakerIcon();
   </script>
 </body>
