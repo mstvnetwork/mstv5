@@ -43,58 +43,74 @@
     // Ensure the times are in 24-hour format (HH:MM).
     // The example uses arbitrary times for demonstration.
     const channelPlaylists = {
-  '1': [ // Playlist for Channel 1 (Default channel)
+  '1': [ // Playlist for Channel 1
     {
-      url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", 
-      startTime: "15:45",
-      endTime: "15:47"   
+      url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
+      startTime: "16:00", // Starts at 4:00 PM AEST
+      endTime: "16:02"    // Plays for 2 minutes
     },
     {
-      url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8",
-      startTime: "15:47", 
-      endTime: "15:48"  
+      url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
+      startTime: "16:02", // Starts immediately after previous
+      endTime: "16:04"
     },
     {
-      url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8", 
-      startTime: "15:48",
-      endTime: "15:49"   
+      url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
+      startTime: "16:04",
+      endTime: "16:06"
+    },
+    {
+      url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      startTime: "16:06",
+      endTime: "23:59" // Plays until end of day
     }
   ],
-  '2': [ // Playlist for Channel 2
+  '2': [ // Playlist for Channel 2 - Different schedule using the same URLs
     {
-      url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", 
-      startTime: "00:00",
-      endTime: "12:00"
+      url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
+      startTime: "16:00",
+      endTime: "16:03"
     },
     {
-      url: "https://playertest.longtailvideo.com/adaptive/oceans_aes/oceans_aes.m3u8", 
-      startTime: "15:45",
-      endTime: "15:46"
+      url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
+      startTime: "16:03",
+      endTime: "16:06"
     },
     {
-      url: "https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8",
-      startTime: "15:46",
-      endTime: "15:47"
+      url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      startTime: "16:06",
+      endTime: "16:09"
+    },
+    {
+      url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
+      startTime: "16:09",
+      endTime: "23:59"
     }
   ],
-  '3': [ // Playlist for Channel 3
+  '3': [ // Playlist for Channel 3 - Another variation
     {
-      url: "https://www.streambox.fr/playlists/test_001/stream.m3u8", 
-      startTime: "15:45",
-      endTime: "15:50"
+      url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
+      startTime: "16:00",
+      endTime: "16:01"
     },
     {
-      url: "https://livesim.dashif.org/livesim/scte35_2/testpic_2s/source.m3u8",
-      startTime: "15:50",
-      endTime: "15:55"
+      url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+      startTime: "16:01",
+      endTime: "16:03"
     },
     {
-      url: "https://d3rlna7yzkd6jn.cloudfront.net/out/v1/fe19a557b6ed41f4b2f293998f4e6012/manifest.m3u8",
-      startTime: "15:55",
-      endTime: "16:00"
+      url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
+      startTime: "16:03",
+      endTime: "16:05"
+    },
+    {
+      url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
+      startTime: "16:05",
+      endTime: "23:59"
     }
   ]
 };
+
 
     function findCurrentStream(now) {
       for (const item of playlist) {
