@@ -12,19 +12,27 @@
       align-items: center;
       height: 100vh;
     }
-    iframe {
-      width: 90%;
-      height: 50vh;
-      border: 4px solid gold;
-      border-radius: 10px;
-    }
+      .player-wrapper {
+    width: 90%;
+    max-width: 1000px;
+    aspect-ratio: 16 / 9;
+    border: 4px solid gold;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
   </style>
 </head>
 <body>
-
-  <iframe id="playerIframe" src="" allowfullscreen></iframe>
-
-  <script>
+<div class="player-wrapper">
+  <iframe src="player.html?url=..." allowfullscreen></iframe>
+</div>
+ <script>
     // Helper to create Date for today at given HH:MM string, local time
     function todayAt(timeStr) {
       const [h, m] = timeStr.split(':').map(Number);
