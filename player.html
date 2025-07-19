@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-M" />
+  <meta charset="UTF-8" />
   <title>HLS Player</title>
   <style>
     html, body {
@@ -11,6 +11,8 @@
       height: 100%;
       overflow: hidden;
       position: relative;
+      font-family: sans-serif; /* Added for better text appearance */
+      color: white; /* Default text color */
     }
 
     #video {
@@ -66,6 +68,47 @@
         margin-bottom: 10px;
     }
 
+    /* New: Loading Overlay Styles */
+    #loadingOverlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8); /* Slightly darker to make spinner pop */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: gold; /* Golden yellow for text */
+        font-size: 1.5em;
+        z-index: 12; /* Above playOverlay when active */
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.3s;
+        pointer-events: none; /* Allows clicks to pass through when hidden */
+    }
+
+    #loadingOverlay.visible {
+        opacity: 1;
+        pointer-events: auto; /* Enable interaction when visible, though not clickable */
+    }
+
+    /* Golden Yellow Spinner Styles (CSS from https://css-tricks.com/html-for-custom-loading-indicators/) */
+    .spinner {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 215, 0, 0.3); /* Lighter golden yellow border */
+      border-radius: 50%;
+      border-top-color: gold; /* Golden yellow top border */
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 15px; /* Space between spinner and text */
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     #errorMessage {
         position: absolute;
         bottom: 12px;
@@ -74,7 +117,7 @@
         color: white;
         padding: 8px 15px;
         border-radius: 5px;
-        z-index: 12;
+        z-index: 13; /* Ensure error messages are on top */
         font-size: 0.9em;
         display: none; /* Hidden by default */
     }
@@ -88,12 +131,22 @@
     <span class="play-icon">▶️</span>
     <span>Click to Play</span>
   </div>
-  <div id="errorMessage"></div> <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingText">Connecting...</div>
+  </div>
+
+  <div id="errorMessage"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById("video");
     const speakerToggle = document.getElementById("speakerToggle");
     const playOverlay = document.getElementById("playOverlay");
-    const errorMessageDiv = document.getElementById("errorMessage"); // Get new error div
+    const loadingOverlay = document.getElementById("loadingOverlay"); // Get new loading overlay
+    const loadingText = document.getElementById("loadingText");     // Get loading text
+    const errorMessageDiv = document.getElementById("errorMessage");
 
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
@@ -118,15 +171,28 @@
 
     function showPlayOverlay() {
         playOverlay.classList.remove("hidden");
+        hideLoadingOverlay(); // Hide loading if play overlay is shown
     }
 
     function hidePlayOverlay() {
         playOverlay.classList.add("hidden");
     }
 
+    function showLoadingOverlay(text = "Connecting...") {
+        loadingText.textContent = text;
+        loadingOverlay.classList.add("visible");
+        hideErrorMessage(); // Hide error if loading is visible
+    }
+
+    function hideLoadingOverlay() {
+        loadingOverlay.classList.remove("visible");
+    }
+
     function showErrorMessage(message) {
         errorMessageDiv.textContent = `Error: ${message}`;
         errorMessageDiv.style.display = 'block';
+        hideLoadingOverlay(); // Hide loading if an error occurs
+        showPlayOverlay(); // Re-enable play overlay if there's an error
     }
 
     function hideErrorMessage() {
@@ -142,7 +208,8 @@
       window.parent.postMessage({ type: 'muteStateChange', muted: video.muted }, '*');
       console.log("Speaker toggled. Muted:", video.muted);
 
-      if (video.paused) {
+      // If video is paused, try to play after unmuting
+      if (video.paused && !video.ended) { // Don't auto-play if stream has ended
           attemptVideoPlayWithOffset();
       }
     });
@@ -153,6 +220,8 @@
         localStorage.setItem('playerMutedState', video.muted);
         window.parent.postMessage({ type: 'muteStateChange', muted: video.muted }, '*');
         updateSpeakerIcon();
+        hidePlayOverlay(); // Hide play overlay immediately
+        showLoadingOverlay("Playing..."); // Show loading spinner
         attemptVideoPlayWithOffset();
     });
 
@@ -163,32 +232,37 @@
             console.error("No stream URL provided for playback attempt.");
             document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
             hidePlayOverlay();
+            hideLoadingOverlay();
             return;
         }
 
-        // Give HLS.js/video element a moment to be ready
-        // Wait for HAVE_ENOUGH_DATA (readyState 4) before setting currentTime and playing
-        if (video.readyState >= 4) {
+        // Only try to play if HLS is attached and ready
+        if (hlsInstance && hlsInstance.media === video && video.readyState >= 4) {
             console.log(`Video readyState: ${video.readyState}. Setting currentTime to ${offset} and attempting play.`);
             video.currentTime = offset;
             video.play().then(() => {
                 console.log("Video playback started successfully.");
                 hidePlayOverlay();
-                hideErrorMessage(); // Hide any previous error message on successful play
+                hideLoadingOverlay(); // Hide loading spinner on successful play
+                hideErrorMessage();
                 updateSpeakerIcon();
             }).catch(err => {
                 console.warn("Autoplay blocked or play failed:", err.name, err.message);
                 if (err.name === "NotAllowedError") {
-                    showPlayOverlay();
+                    showPlayOverlay(); // Show play overlay if autoplay blocked
                 } else {
-                    // For other play errors, show a general error message
                     showErrorMessage(`Playback failed: ${err.message || err.name}.`);
                 }
+                hideLoadingOverlay(); // Hide loading on play error
                 updateSpeakerIcon();
             });
         } else {
             console.log(`Video not ready yet (readyState: ${video.readyState}). Retrying play attempt in 200ms.`);
-            setTimeout(attemptVideoPlayWithOffset, 200); // Increased retry delay slightly
+            // Only show loading if we are still waiting for readiness
+            if (!playOverlay.classList.contains("visible")) { // Don't show loading if play overlay is active
+                showLoadingOverlay();
+            }
+            setTimeout(attemptVideoPlayWithOffset, 200);
         }
     }
 
@@ -217,49 +291,57 @@
           console.log("HLS.js supported. Loading source:", url);
           hlsInstance.loadSource(url);
           hlsInstance.attachMedia(video);
+          showLoadingOverlay(); // Show loading when HLS starts loading
 
           hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
             console.log("HLS: MANIFEST_PARSED. Levels:", data.levels.length);
+            // After manifest parsed, try to play. If autoplay fails, play overlay will show.
+            // If it succeeds, loading overlay will be hidden by 'playing' event listener.
             attemptVideoPlayWithOffset();
           });
 
           hlsInstance.on(Hls.Events.ERROR, function (event, data) {
-            console.error("HLS Error:", data.type, data.details, data.fatal, data.reason); // Added data.reason for more info
-            let errorMessage = `Stream error: ${data.details}`;
-            if (data.reason) {
-                errorMessage += ` (${data.reason})`;
+            console.error("HLS Error:", data.type, data.details, data.fatal, data.reason);
+            let userMessage = "Stream error."; // Default general error
+            if (data.details === Hls.ErrorDetails.MANIFEST_LOAD_ERROR || data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR) {
+                userMessage = "Failed to load stream. Please check connection.";
+            } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+                 userMessage = "Buffering, please wait...";
+            } else if (data.details.includes("decoding")) {
+                 userMessage = "Video decoding error.";
+            } else if (data.fatal) {
+                userMessage = "Unrecoverable stream error.";
             }
 
             if (data.fatal) {
               switch(data.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  console.error("Fatal network error encountered. Trying to re-start HLS load...");
-                  showErrorMessage("Network error, attempting to recover...");
-                  hlsInstance.startLoad();
+                  console.error("Fatal network error. Trying to re-start HLS load.");
+                  showErrorMessage(userMessage + " Attempting reconnect.");
+                  hlsInstance.startLoad(); // Try to restart
                   break;
                 case Hls.ErrorTypes.MEDIA_ERROR:
-                  console.error("Fatal media error encountered. Trying to recover media...");
-                  showErrorMessage("Media error, attempting to recover...");
+                  console.error("Fatal media error. Trying to recover media.");
+                  showErrorMessage(userMessage + " Attempting recovery.");
                   hlsInstance.recoverMediaError();
                   break;
                 default:
                   console.error("Unrecoverable HLS error. Destroying HLS instance.");
-                  showErrorMessage("Unrecoverable stream error.");
+                  showErrorMessage(userMessage);
                   hlsInstance.destroy();
                   showPlayOverlay(); // Show overlay if a fatal error occurs
                   break;
               }
-            } else if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
-                console.warn("Non-fatal HLS: BUFFER_FULL_ERROR. Player buffer is full.");
-                // This might indicate the video is not playing / consuming data fast enough.
-                // We'll log it but not show an explicit error to the user immediately.
-            } else if (data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR) {
-                console.warn("Non-fatal HLS: FRAG_PARSING_ERROR. Skipping problematic fragment.");
-                showErrorMessage("Video data error. May experience brief skips.");
-                // HLS.js usually tries to skip the bad fragment.
-                // You might want to consider reloading the player for persistent parsing errors.
             } else {
-                showErrorMessage(errorMessage); // Show other non-fatal errors
+                // For non-fatal errors, only show the error message temporarily if it's critical to user
+                // For 'BUFFER_FULL_ERROR' and 'FRAG_PARSING_ERROR', don't show a user message
+                if (data.details !== Hls.ErrorDetails.BUFFER_FULL_ERROR && data.details !== Hls.ErrorDetails.FRAG_PARSING_ERROR) {
+                    showErrorMessage(userMessage);
+                }
+            }
+            // Ensure loading state is handled correctly if an error interrupts it
+            if (video.paused && !playOverlay.classList.contains("visible")) {
+                showLoadingOverlay("Reconnecting...");
             }
           });
           hlsInstance.on(Hls.Events.BUFFER_FLUSHING, () => console.log("HLS: BUFFER_FLUSHING"));
@@ -270,6 +352,7 @@
         } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
           console.log("Native HLS supported. Loading source:", url);
           video.src = url;
+          showLoadingOverlay(); // Show loading when native HLS starts loading
           video.addEventListener("loadedmetadata", () => {
             console.log("Video: loadedmetadata.");
             attemptVideoPlayWithOffset();
@@ -278,11 +361,13 @@
             console.error("Native video error:", e);
             showErrorMessage(`Native video error: ${e.message || e.name || 'Unknown'}`);
             showPlayOverlay();
+            hideLoadingOverlay();
           });
         } else {
           document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
           console.error("HLS not supported in this browser.");
           showErrorMessage("HLS not supported in this browser.");
+          hideLoadingOverlay();
         }
     }
 
@@ -300,32 +385,39 @@
     video.addEventListener('playing', () => {
         console.log("Video 'playing' event fired.");
         hidePlayOverlay();
+        hideLoadingOverlay(); // Hide loading spinner when playing
         hideErrorMessage(); // Hide error message when playing starts
         updateSpeakerIcon();
     });
 
     video.addEventListener('waiting', () => {
         console.log("Video 'waiting' for data...");
-        showErrorMessage("Buffering..."); // Inform user about buffering
+        showLoadingOverlay("Buffering..."); // Show spinner and "Buffering..."
+        // Do NOT show an explicit error message for 'waiting'
     });
+
     video.addEventListener('stalled', () => {
         console.log("Video 'stalled' (data not coming fast enough)...");
-        showErrorMessage("Stalled, checking connection...");
+        showLoadingOverlay("Stalled, reconnecting..."); // Show spinner and "Stalled..."
+        // Do NOT show an explicit error message for 'stalled'
     });
+
     video.addEventListener('ended', () => {
         console.log("Video 'ended' (stream finished).");
         // index.html will load the next video
+        showLoadingOverlay("Waiting for next broadcast..."); // Show a message for end of stream
     });
+
     video.addEventListener('pause', () => {
         console.log("Video 'paused'.");
-        // If it's paused unexpectedly and not by user, you might want to show overlay
-        // e.g., if (!video.ended && !video.seeking) { showPlayOverlay(); }
+        // If it's paused unexpectedly (not by user click on play overlay)
+        if (!video.ended && !video.seeking && !playOverlay.classList.contains("visible")) {
+            showLoadingOverlay("Paused / Reconnecting..."); // Or just "Paused" if you prefer
+        }
     });
 
     // Initial state setup
     updateSpeakerIcon();
-    // No need to show overlay here immediately, as attemptVideoPlayWithOffset will handle it
-    // if autoplay fails.
     // Ensure localStorage preference is always consistent with initial video state
     if (localStorage.getItem('playerMutedState') === null) {
       localStorage.setItem('playerMutedState', video.muted);
