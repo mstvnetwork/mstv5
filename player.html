@@ -10,14 +10,15 @@
       background: black;
       height: 100%;
       overflow: hidden;
+      position: relative; /* Needed for absolute positioning of overlays */
     }
 
     #video {
       width: 100%;
       height: 100%;
       background: black;
-      object-fit: contain; /* Ensures video scales without cropping while maintaining aspect ratio */
-      display: block; /* Remove any default spacing below video */
+      object-fit: contain;
+      display: block;
     }
 
     #speakerToggle {
@@ -35,76 +36,271 @@
       transition: opacity 0.3s;
     }
 
-    /* Optional: Show overlay on hover for better UX if speakerToggle is initially hidden */
-    /*
-    #speakerToggle.hidden {
+    #playOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 2em;
+      cursor: pointer;
+      z-index: 11; /* Above speakerToggle */
+      flex-direction: column; /* For icon and text */
+      text-align: center;
+      opacity: 1; /* Initially visible */
+      transition: opacity 0.3s;
+    }
+
+    #playOverlay.hidden {
       opacity: 0;
-      pointer-events: none;
+      pointer-events: none; /* Disable clicks when hidden */
     }
-    body:hover #speakerToggle.hidden {
-      opacity: 1;
-      pointer-events: auto;
+
+    #playOverlay .play-icon {
+        font-size: 3em; /* Larger play icon */
+        margin-bottom: 10px;
     }
-    */
+
+    #errorMessage {
+        position: absolute;
+        bottom: 12px;
+        left: 12px;
+        background: rgba(255, 0, 0, 0.8);
+        color: white;
+        padding: 8px 15px;
+        border-radius: 5px;
+        z-index: 12;
+        font-size: 0.9em;
+        display: none; /* Hidden by default */
+    }
   </style>
 </head>
 <body>
-  <video id="video" playsinline></video> <div id="speakerToggle"></div>
+  <video id="video" playsinline></video>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <div id="speakerToggle"></div>
+
+  <div id="playOverlay" class="hidden">
+    <span class="play-icon">▶️</span>
+    <span>Click to Play</span>
+  </div>
+  <div id="errorMessage"></div> <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById("video");
     const speakerToggle = document.getElementById("speakerToggle");
+    const playOverlay = document.getElementById("playOverlay");
+    const errorMessageDiv = document.getElementById("errorMessage");
 
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
-    const initialMutedState = params.get("muted") === 'true';
+    let initialMutedState = params.get("muted") === 'true'; // Use 'let' as we might override
 
-    // Set initial mute state based on parameter from index.html
-    video.muted = initialMutedState;
-    console.log("Player initialized. Video URL:", url, "Offset:", offset, "Initial Muted:", initialMutedState);
-
-    // Handle toggle
-    function updateSpeakerIcon() {
-      speakerToggle.textContent = video.muted ? "🔇" : "🔊";
-      // This button should always be visible so the user can interact.
-      // If you want to hide it when unmuted, uncomment the line below,
-      // but consider adding a hover effect (see CSS comments).
-      // speakerToggle.classList.toggle("hidden", !video.muted);
+    // Get the persistent mute state from localStorage (which index.html also checks)
+    const storedMutedState = localStorage.getItem('playerMutedState');
+    if (storedMutedState !== null) {
+        initialMutedState = storedMutedState === 'true'; // Override if localStorage has a value
     }
 
+    video.muted = initialMutedState; // Set initial mute state based on parameter/localStorage
+    console.log("Player initialized. Video URL:", url, "Offset:", offset, "Initial Muted:", video.muted);
+
+    let hlsInstance = null; // Store Hls instance globally for lifecycle management
+
+
+    // --- UI Update Functions ---
+    function updateSpeakerIcon() {
+      speakerToggle.textContent = video.muted ? "🔇" : "🔊";
+    }
+
+    function showPlayOverlay() {
+        playOverlay.classList.remove("hidden");
+    }
+
+    function hidePlayOverlay() {
+        playOverlay.classList.add("hidden");
+    }
+
+    function showErrorMessage(message) {
+        errorMessageDiv.textContent = `Error: ${message}`;
+        errorMessageDiv.style.display = 'block';
+    }
+
+    function hideErrorMessage() {
+        errorMessageDiv.style.display = 'none';
+        errorMessageDiv.textContent = '';
+    }
+
+    // --- Event Handlers ---
     speakerToggle.addEventListener("click", () => {
       video.muted = !video.muted;
       updateSpeakerIcon();
-      // Store the mute state in localStorage
       localStorage.setItem('playerMutedState', video.muted);
-      // Inform the parent frame (index.html) about the change
       window.parent.postMessage({ type: 'muteStateChange', muted: video.muted }, '*');
       console.log("Speaker toggled. Muted:", video.muted);
-      // If video was paused (e.g., due to autoplay block), attempt to play
-      if (!video.paused) {
-          video.play().catch(e => console.warn("Play attempt after unmute failed:", e));
+
+      // If the video is paused (likely due to autoplay block), attempt to play
+      // This click interaction should satisfy browser autoplay policy.
+      if (video.paused) {
+          attemptVideoPlayWithOffset();
       }
     });
 
-    // Function to handle video playback attempts with offset
+    playOverlay.addEventListener("click", () => {
+        console.log("Play overlay clicked. Attempting to play video.");
+        video.muted = false; // Always unmute on explicit play click from overlay
+        localStorage.setItem('playerMutedState', video.muted);
+        window.parent.postMessage({ type: 'muteStateChange', muted: video.muted }, '*');
+        updateSpeakerIcon(); // Update icon to "unmuted"
+        attemptVideoPlayWithOffset();
+    });
+
+    // Listen for mute toggles from parent (index.html)
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'muteToggle') {
+            video.muted = event.data.muted;
+            updateSpeakerIcon();
+            localStorage.setItem('playerMutedState', video.muted); // Ensure localStorage reflects this
+            console.log("Mute state received from parent:", video.muted);
+            // If parent asks to unmute and video is paused, attempt play
+            if (!video.muted && video.paused) {
+                attemptVideoPlayWithOffset();
+            }
+        }
+    });
+
+
+    // --- HLS Playback Logic ---
     function attemptVideoPlayWithOffset() {
-        if (video.readyState >= 2) { // HAVE_CURRENT_DATA or greater
+        if (!url) {
+            console.error("No stream URL provided for playback attempt.");
+            document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
+            hidePlayOverlay();
+            return;
+        }
+
+        // Give HLS.js/video element a moment to be ready
+        // Wait for HAVE_ENOUGH_DATA (readyState 4) before setting currentTime and playing
+        if (video.readyState >= 4) { // This was changed from 2 to 4 in this version for more robustness
             console.log(`Video readyState: ${video.readyState}. Setting currentTime to ${offset} and attempting play.`);
             video.currentTime = offset;
             video.play().then(() => {
                 console.log("Video playback started successfully.");
-                updateSpeakerIcon(); // Update icon after successful play (e.g. if autoplay was blocked)
+                hidePlayOverlay(); // Hide overlay on successful play
+                hideErrorMessage(); // Hide any previous error message on successful play
+                updateSpeakerIcon(); // Update icon after successful play
             }).catch(err => {
                 console.warn("Autoplay blocked or play failed:", err.name, err.message);
-                // Ensure icon is visible if autoplay blocked, so user can interact
-                updateSpeakerIcon();
-                // Optionally, show a "click to play" message
+                if (err.name === "NotAllowedError") {
+                    showPlayOverlay(); // Show overlay if autoplay is blocked
+                } else {
+                    // For other play errors, show a general error message
+                    showErrorMessage(`Playback failed: ${err.message || err.name}.`);
+                }
+                updateSpeakerIcon(); // Ensure icon is shown for user to interact
             });
         } else {
-            console.log(`Video not ready yet (readyState: ${video.readyState}). Retrying play attempt in 100ms.`);
-            setTimeout(attemptVideoPlayWithOffset, 100); // Retry if not ready
+            console.log(`Video not ready yet (readyState: ${video.readyState}). Retrying play attempt in 200ms.`); // Increased delay to 200ms
+            setTimeout(attemptVideoPlayWithOffset, 200); // Retry if not ready
+        }
+    }
+
+
+    // --- Initialize HLS ---
+    function initializeHlsPlayer() {
+        if (hlsInstance) {
+            hlsInstance.destroy(); // Destroy previous instance if it exists
+            hlsInstance = null;
+            console.log("Destroyed previous HLS instance.");
+        }
+
+        if (Hls.isSupported()) {
+          hlsInstance = new Hls({
+            // Consider these HLS.js config options. They can help with buffering:
+            // These were still the initial comments/defaults, not the tuned ones yet.
+            // liveSyncDurationCount: 2,
+            // liveMaxLatencyDuration: 10,
+            // fragLoadingMaxRetry: 6,
+            // fragLoadingRetryDelay: 1000,
+            // maxBufferLength: 30,
+            // maxBufferHole: 0.5,
+          });
+
+          console.log("HLS.js supported. Loading source:", url);
+          hlsInstance.loadSource(url);
+          hlsInstance.attachMedia(video);
+
+          hlsInstance.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+            console.log("HLS: MANIFEST_PARSED. Levels:", data.levels.length);
+            // Attempt to play after manifest is parsed.
+            // This will trigger the autoplay policy check.
+            attemptVideoPlayWithOffset();
+          });
+
+          hlsInstance.on(Hls.Events.ERROR, function (event, data) {
+            console.error("HLS Error:", data.type, data.details, data.fatal, data.reason);
+            let errorMessage = `Stream error: ${data.details}`;
+            if (data.reason) {
+                errorMessage += ` (${data.reason})`;
+            }
+
+            if (data.fatal) {
+              switch(data.type) {
+                case Hls.ErrorTypes.NETWORK_ERROR:
+                  console.error("Fatal network error encountered. Trying to re-start HLS load...");
+                  showErrorMessage("Network error, attempting to recover...");
+                  hlsInstance.startLoad();
+                  break;
+                case Hls.ErrorTypes.MEDIA_ERROR:
+                  console.error("Fatal media error encountered. Trying to recover media...");
+                  showErrorMessage("Media error, attempting to recover...");
+                  hlsInstance.recoverMediaError();
+                  break;
+                default:
+                  console.error("Unrecoverable HLS error. Destroying HLS instance.");
+                  showErrorMessage("Unrecoverable stream error.");
+                  hlsInstance.destroy();
+                  showPlayOverlay(); // Show overlay if a fatal error occurs
+                  break;
+              }
+            } else if (data.details === Hls.ErrorDetails.BUFFER_FULL_ERROR) {
+                console.warn("Non-fatal HLS: BUFFER_FULL_ERROR. Player buffer is full.");
+                // This might happen if player is paused or not consuming data fast enough.
+                // We don't need to do anything specific here, HLS.js usually handles this.
+            } else if (data.details === Hls.ErrorDetails.FRAG_PARSING_ERROR) { // Added this specific handling for fragParsingError
+                console.warn("Non-fatal HLS: FRAG_PARSING_ERROR. Skipping problematic fragment.");
+                showErrorMessage("Video data error. May experience brief skips.");
+            } else {
+                showErrorMessage(errorMessage); // Show other non-fatal errors
+            }
+          });
+          hlsInstance.on(Hls.Events.BUFFER_FLUSHING, () => console.log("HLS: BUFFER_FLUSHING"));
+          hlsInstance.on(Hls.Events.BUFFER_EOS, () => console.log("HLS: BUFFER_EOS (End of Stream)"));
+          hlsInstance.on(Hls.Events.BUFFER_FULL, () => console.log("HLS: BUFFER_FULL"));
+          hlsInstance.on(Hls.Events.LEVEL_SWITCHED, (event, data) => console.log("HLS: LEVEL_SWITCHED to", data.level));
+          hlsInstance.on(Hls.Events.BUFFER_CREATED, (event, data) => console.log("HLS: BUFFER_CREATED", data.bufType)); // Added BUFFER_CREATED logging
+
+        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          console.log("Native HLS supported. Loading source:", url);
+          video.src = url;
+          video.addEventListener("loadedmetadata", () => {
+            console.log("Video: loadedmetadata.");
+            attemptVideoPlayWithOffset();
+          });
+          video.addEventListener('error', (e) => {
+            console.error("Native video error:", e);
+            showErrorMessage(`Native video error: ${e.message || e.name || 'Unknown'}`);
+            showPlayOverlay(); // Show overlay on native video error
+          });
+        } else {
+          document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
+          console.error("HLS not supported in this browser.");
+          showErrorMessage("HLS not supported in this browser.");
         }
     }
 
@@ -112,96 +308,54 @@
     if (!url) {
       document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
       console.error("Missing stream URL!");
-      throw new Error("Missing URL");
-    }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        // Optional HLS.js configuration for smoother playback:
-        // You might need to experiment with these values for your specific streams
-        // liveSyncDurationCount: 2, // How many segments ahead of live edge to buffer
-        // liveMaxLatencyDuration: 5, // Max buffer to allow before seeking to live edge
-        // fragLoadingMaxRetry: 6, // Max retries for segment loading
-        // fragLoadingRetryDelay: 1000, // Delay between retries
-      });
-
-      console.log("HLS.js supported. Loading source:", url);
-      hls.loadSource(url);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-        console.log("HLS: MANIFEST_PARSED. Levels:", data.levels.length);
-        // Attempt to play after manifest is parsed.
-        attemptVideoPlayWithOffset();
-      });
-
-      hls.on(Hls.Events.FRAG_BUFFERED, (event, data) => {
-        // console.log("HLS: FRAG_BUFFERED. Time:", data.frag.start); // Too verbose for production
-      });
-
-      hls.on(Hls.Events.BUFFER_APPENDED, (event, data) => {
-        // console.log("HLS: BUFFER_APPENDED. Segment:", data.segment); // Too verbose
-      });
-
-      hls.on(Hls.Events.ERROR, function (event, data) {
-        console.error("HLS Error:", data.type, data.details, data.fatal);
-        if (data.fatal) {
-          switch(data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error("Fatal network error encountered. Trying to recover...");
-              hls.startLoad(); // Attempt to re-start loading
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error("Fatal media error encountered. Trying to recover...");
-              hls.recoverMediaError(); // Attempt to recover media playback
-              break;
-            default:
-              console.error("Unrecoverable HLS error. Destroying HLS instance.");
-              hls.destroy();
-              // Potentially reload the iframe or show an error message
-              break;
-          }
-        }
-      });
-      hls.on(Hls.Events.BUFFER_FLUSHING, () => console.log("HLS: BUFFER_FLUSHING"));
-      hls.on(Hls.Events.BUFFER_EOS, () => console.log("HLS: BUFFER_EOS (End of Stream)"));
-      hls.on(Hls.Events.BUFFER_FULL, () => console.log("HLS: BUFFER_FULL"));
-      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => console.log("HLS: LEVEL_SWITCHED to", data.level));
-
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      console.log("Native HLS supported. Loading source:", url);
-      video.src = url;
-      video.addEventListener("loadedmetadata", () => {
-        console.log("Video: loadedmetadata.");
-        attemptVideoPlayWithOffset();
-      });
-      video.addEventListener('error', (e) => {
-        console.error("Native video error:", e);
-      });
+      showErrorMessage("No stream URL provided.");
     } else {
-      document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
-      console.error("HLS not supported in this browser.");
+        initializeHlsPlayer(); // Call the initialization function
     }
 
-    // Listen for the 'playing' event to ensure the icon is updated when playback actually begins.
+
+    // Listen for the 'playing' event to hide overlay and ensure icon is updated.
     video.addEventListener('playing', () => {
         console.log("Video 'playing' event fired.");
+        hidePlayOverlay(); // Hide overlay when video actually starts playing
+        hideErrorMessage(); // Hide error message when playing starts
         updateSpeakerIcon();
     });
 
-    // Listen for 'pause' or 'waiting' events to understand playback interruptions
-    video.addEventListener('waiting', () => console.log("Video 'waiting' for data..."));
-    video.addEventListener('stalled', () => console.log("Video 'stalled' (data not coming fast enough)..."));
-    video.addEventListener('ended', () => console.log("Video 'ended' (stream finished)."));
-    video.addEventListener('pause', () => console.log("Video 'paused'."));
+    // Listen for 'pause' or 'waiting' events to show overlay if needed
+    video.addEventListener('waiting', () => {
+        console.log("Video 'waiting' for data...");
+        showErrorMessage("Buffering..."); // Inform user about buffering
+    });
+    video.addEventListener('stalled', () => {
+        console.log("Video 'stalled' (data not coming fast enough)...");
+        showErrorMessage("Stalled, checking connection...");
+    });
+    video.addEventListener('ended', () => {
+        console.log("Video 'ended' (stream finished).");
+        // The parent (index.html) will load the next video, so we don't need to show an overlay here immediately.
+    });
+    video.addEventListener('pause', () => {
+        console.log("Video 'paused'.");
+        // If paused by system (e.g., tab unfocused), might want to show overlay.
+        // If paused by user, they know why.
+        // showPlayOverlay(); // Consider if this is desired on all pauses
+    });
 
-    // Initial icon state on load (before video even starts playing)
+    // Initial state setup
     updateSpeakerIcon();
+    // If the video is initially muted (due to autoplay policy), show the overlay from the start.
+    // This allows the user to click and explicitly play.
+    if (video.muted) { // This initial check might show overlay if browser forces muted start.
+        showPlayOverlay();
+    } else {
+        // If not muted (e.g., previous session was unmuted and allowed by browser),
+        // try to play immediately.
+        attemptVideoPlayWithOffset();
+    }
 
-    // Store initial muted state to localStorage if it's the first load
-    // This makes sure that if the user loads the page for the very first time,
-    // the initial 'muted' state (which defaults to true/muted for autoplay policies) is saved.
-    // Subsequently, the state from localStorage will be used.
+    // Ensure localStorage preference is always consistent with initial video state
+    // (important for first-time visitors if browser forces muted autoplay)
     if (localStorage.getItem('playerMutedState') === null) {
       localStorage.setItem('playerMutedState', video.muted);
       console.log("Initial localStorage mute state set to:", video.muted);
