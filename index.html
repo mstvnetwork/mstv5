@@ -2,53 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Live TV Channels</title>
+  <title>Live TV Playlist (24h format)</title>
   <style>
     body {
       margin: 0;
+      /* When index.html is embedded, its parent container's styles will largely dictate its position/size.
+         These styles below are primarily for when index.html is opened directly in a browser. */
       background: #000;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      font-family: sans-serif;
-      color: white;
-      text-align: center;
+      height: 100vh; /* Fill the viewport height if opened directly */
+      width: 100vw;  /* Fill the viewport width if opened directly */
+      overflow: hidden; /* Prevent scrollbars if content slightly exceeds viewport */
     }
     iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      border-radius: 0;
-      display: block;
-    }
-    .message-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        font-size: 1.5em;
-        z-index: 15;
-    }
-    .message-overlay p {
-        margin: 10px 0;
+      width: 100%; /* Make it fill 100% of its parent's width */
+      height: 100%; /* Make it fill 100% of its parent's height */
+      border: none; /* *** IMPORTANT: Remove the border here for seamless embedding *** */
+      border-radius: 0; /* Also remove border-radius for a clean rectangular embed */
+      display: block; /* Ensures no extra space below the iframe */
     }
   </style>
 </head>
 <body>
 
   <iframe id="playerIframe" src="" allowfullscreen></iframe>
-  <div id="messageOverlay" class="message-overlay" style="display: none;">
-      <p id="messageText"></p>
-  </div>
 
   <script>
     // Helper to create Date for today at given HH:MM string, local time
@@ -59,78 +38,37 @@
       return d;
     }
 
-    // Define playlists for multiple channels, starting from 16:32 AEST
-    const channelPlaylists = {
-      '1': [ // Playlist for Channel 1
-        {
-          url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:32", // Starts at 4:32 PM AEST
-          endTime: "16:34"    // Plays for 2 minutes
-        },
-        {
-          url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:34", // Starts immediately after previous
-          endTime: "16:36"
-        },
-        {
-          url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:36",
-          endTime: "16:38"
-        },
-        {
-          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:38",
-          endTime: "23:59" // Plays until end of day
-        }
-      ],
-      '2': [ // Playlist for Channel 2 - Different schedule using the same URLs
-        {
-          url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:32",
-          endTime: "16:35"
-        },
-        {
-          url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:35",
-          endTime: "16:38"
-        },
-        {
-          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:38",
-          endTime: "16:41"
-        },
-        {
-          url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:41",
-          endTime: "23:59"
-        }
-      ],
-      '3': [ // Playlist for Channel 3 - Another variation
-        {
-          url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:32",
-          endTime: "16:33"
-        },
-        {
-          url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:33",
-          endTime: "16:35"
-        },
-        {
-          url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:35",
-          endTime: "16:37"
-        },
-        {
-          url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:37",
-          endTime: "23:59"
-        }
-      ]
-    };
+    // Playlist with 24h schedule times (today's date is assumed)
+    // IMPORTANT: Adjust these times to your actual desired schedule.
+    // Ensure the times are in 24-hour format (HH:MM).
+    // The example uses arbitrary times for demonstration.
+    const playlist = [
+      {
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", // Example URL 1
+        startTime: "16:50", // 2:20 PM
+        endTime: "16:51"    // 2:21 PM
+      },
+      {
+        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", // Example URL 2
+        startTime: "16:51", // 2:21 PM
+        endTime: "16:55"    // 2:28 PM
+      }
+      // Add more channels/segments here
+      /*
+      {
+        url: "YOUR_STREAM_URL_3.m3u8",
+        startTime: "14:28",
+        endTime: "14:35"
+      },
+      {
+        url: "YOUR_STREAM_URL_4.m3u8",
+        startTime: "14:35",
+        endTime: "14:45"
+      }
+      */
+    ];
 
-    // This function now correctly accepts 'playlist' as an argument
-    function findCurrentStream(now, playlist) {
+    function findCurrentStream(now) {
       for (const item of playlist) {
         const start = todayAt(item.startTime);
         const end = todayAt(item.endTime);
@@ -141,51 +79,27 @@
       return null;
     }
 
-    function showMessage(text) {
-        const overlay = document.getElementById("messageOverlay");
-        const messageText = document.getElementById("messageText");
-        messageText.textContent = text;
-        overlay.style.display = 'flex';
-        document.getElementById("playerIframe").style.display = 'none'; // Hide iframe when message is shown
-    }
-
-    function hideMessage() {
-        document.getElementById("messageOverlay").style.display = 'none';
-        document.getElementById("playerIframe").style.display = 'block'; // Show iframe when message is hidden
-    }
-
     function setIframeSrc() {
       const now = new Date();
+      const stream = findCurrentStream(now);
       const iframe = document.getElementById("playerIframe");
-      const urlParams = new URLSearchParams(window.location.search);
-      const channelId = urlParams.get('ch') || '1'; // Default to channel '1' if no 'ch' parameter
-
-      const activePlaylist = channelPlaylists[channelId];
-
-      if (!activePlaylist) {
-        showMessage(`Channel "${channelId}" not found. Please check the URL.`);
-        iframe.src = ""; // Clear iframe if channel is invalid
-        console.error(`Error: Channel "${channelId}" not found.`);
-        return;
-      }
-
-      // This is where 'activePlaylist' is correctly passed to findCurrentStream
-      const stream = findCurrentStream(now, activePlaylist);
 
       if (!stream) {
-        iframe.src = ""; // no stream right now
-        showMessage(`Channel ${channelId} is currently off air. Please check back later.`);
-        console.log(`No stream scheduled for Channel ${channelId} at the current time.`);
+        // No stream scheduled right now.
+        // You could set a default "offline" video or clear the iframe source.
+        if (iframe.src !== "") { // Avoid unnecessary updates
+            iframe.src = ""; // Clear the iframe if no stream is active
+            console.log("No stream scheduled for the current time. Iframe source cleared.");
+        }
         return;
       }
 
       const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
 
-      // Only update iframe source if it's actually changing, to prevent unnecessary reloads
+      // Update iframe source only if it's actually changing, to prevent unnecessary reloads
       if (iframe.src !== src) {
         iframe.src = src;
         console.log("Iframe source updated to:", src);
-        hideMessage(); // Hide any active messages once a stream is found and set
       } else {
         // console.log("Iframe source is already correct:", src); // Uncomment for debugging
       }
@@ -194,9 +108,8 @@
     // Initial call to set the correct stream when the page loads
     setIframeSrc();
 
-    // For testing short intervals, set to 5000 (5 seconds) or 1000 (1 second).
-    // REMEMBER TO CHANGE IT BACK TO 60000 (1 minute) FOR PRODUCTION!
-    setInterval(setIframeSrc, 5000);
+    // Set interval to check for stream changes every minute (60 seconds)
+    setInterval(setIframeSrc, 60000);
   </script>
 
 </body>
