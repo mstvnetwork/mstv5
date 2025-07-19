@@ -10,21 +10,38 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      height: 100vh; /* This centers the iframe on the page */
+      overflow: hidden; /* Prevent scrollbars if iframe is larger than viewport */
     }
     iframe {
-      width: 90%;
-      height: 50vh;
-      border: 4px solid gold;
-      border-radius: 10px;
+      width: 100%; /* Take full width of its container (which is 100% of body) */
+      height: 100%; /* Take full height of its container */
+      border: none; /* REMOVED BORDER FOR EMBEDDABILITY */
+      /* No border-radius for cleaner embedding, but you can add it if you need rounded corners for your specific embedding context */
     }
+
+    /* Optional: If you want to control the player size when embedded into another page,
+       you would wrap the iframe in a div and set the size of that div.
+       For example, if this index.html itself is meant to be embedded:
+       html, body {
+         width: 100%;
+         height: 100%;
+       }
+       .player-container {
+         width: 100%;
+         height: 100%;
+         max-width: 1920px; // Example max width
+         max-height: 1080px; // Example max height
+         margin: auto; // Center it
+         position: relative;
+         overflow: hidden;
+       }
+    */
   </style>
 </head>
 <body>
 
-  <iframe id="playerIframe" src="" allowfullscreen></iframe>
-
-  <script>
+  <iframe id="playerIframe" src="" allowfullscreen allow="autoplay"></iframe> <script>
     // Helper to create Date for today at given HH:MM string, local time
     function todayAt(timeStr) {
       const [h, m] = timeStr.split(':').map(Number);
@@ -37,20 +54,40 @@
     const playlist = [
       {
         url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        startTime: "11:15",
-        endTime: "11:16"
+        startTime: "00:00", // Example: Start from midnight
+        endTime: "23:59" // Example: Go until almost midnight
       },
       {
         url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-        startTime: "11:16",
-        endTime: "11:34"
+        startTime: "23:59", // Example: A short clip right before midnight
+        endTime: "23:59" // Adjust as needed
       }
+      // Add more videos to your playlist here with specific start and end times
+      // Make sure there are no gaps or overlaps for continuous playback.
+      // Example:
+      // {
+      //   url: "YOUR_VIDEO_URL_3.m3u8",
+      //   startTime: "10:00",
+      //   endTime: "10:30"
+      // },
+      // {
+      //   url: "YOUR_VIDEO_URL_4.m3u8",
+      //   startTime: "10:30",
+      //   endTime: "11:00"
+      // }
     ];
 
     function findCurrentStream(now) {
+      // Ensure playlist covers the entire 24-hour period for continuous "TV"
+      // This is a basic example; for a real TV channel, you'd need more robust scheduling
+      // to handle cases where 'now' might fall between defined streams.
       for (const item of playlist) {
         const start = todayAt(item.startTime);
         const end = todayAt(item.endTime);
+
+        // Adjust for streams that might cross midnight (e.g., 23:00 to 01:00)
+        // This simple setup assumes all streams start and end within the same day.
+        // For cross-day streams, you'd need more complex date handling.
         if (now >= start && now < end) {
           return { url: item.url, offset: (now - start) / 1000 };
         }
@@ -64,16 +101,39 @@
       const iframe = document.getElementById("playerIframe");
 
       if (!stream) {
-        iframe.src = ""; // no stream right now
+        // Option 1: Show a "No Broadcast" message or a default video
+        console.log("No stream scheduled for the current time.");
+        iframe.src = ""; // Or a placeholder HTML page
         return;
       }
 
-      const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
-      iframe.src = src;
+      // Get the persistent mute state from localStorage (or default to true/muted)
+      const isMuted = localStorage.getItem('playerMutedState') === 'true';
+
+      // Pass the mute state to player.html
+      const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}&muted=${isMuted}`;
+
+      // Only update iframe src if it's different to prevent unnecessary reloads
+      if (iframe.src !== window.location.origin + src) { // Compare full URLs
+         iframe.src = src;
+      }
     }
 
+    // Initial call
     setIframeSrc();
-    setInterval(setIframeSrc, 60000);
+
+    // Check every 5 seconds instead of 60 for smoother transitions,
+    // especially for short video segments. Adjust as needed.
+    setInterval(setIframeSrc, 5000);
+
+    // Add a listener to ensure that if player.html sends a message about its mute state,
+    // we can update localStorage accordingly. This is a fallback/extra check.
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.type === 'muteStateChange') {
+            localStorage.setItem('playerMutedState', event.data.muted);
+        }
+    });
+
   </script>
 
 </body>
