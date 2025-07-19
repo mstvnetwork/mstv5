@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -40,7 +40,7 @@
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video>
+  <video id="video" autoplay playsinline controls muted></video>
   <div id="speakerToggle">🔇</div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
@@ -66,53 +66,56 @@
       updateSpeakerIcon();
     });
 
+    function tryPlay() {
+      video.play().catch(e => console.warn("Play failed:", e));
+    }
+
+    function loadVideoStream(finalURL) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({ startPosition: -1 });
+        hls.loadSource(finalURL);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          console.log("Media attached to video element");
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          console.log("Manifest parsed, waiting for metadata...");
+        });
+
+        hls.on(Hls.Events.LEVEL_LOADED, () => {
+          console.log("Level loaded, setting offset if any...");
+          if (offset > 0) {
+            video.currentTime = offset;
+          }
+          tryPlay();
+        });
+
+        // Clean up on reload (optional but good practice)
+        window.addEventListener("beforeunload", () => {
+          hls.destroy();
+        });
+
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = finalURL;
+        video.addEventListener("loadedmetadata", () => {
+          if (offset > 0) video.currentTime = offset;
+          tryPlay();
+        });
+      } else {
+        document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
+      }
+    }
+
     if (!url) {
       document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
       throw new Error("Missing URL");
     }
 
-    function tryPlayVideo() {
-      video.play().catch(err => {
-        console.warn("Autoplay or playback blocked:", err);
-      });
-    }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        startPosition: offset
-      });
-
-      hls.loadSource(url);
-      hls.attachMedia(video);
-
-      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-        console.log("Media attached");
-      });
-
-      hls.on(Hls.Events.BUFFER_APPENDED, () => {
-        console.log("Buffer appended");
-        if (video.readyState >= 2) {
-          tryPlayVideo();
-        }
-      });
-
-      hls.on(Hls.Events.FRAG_BUFFERED, () => {
-        console.log("Fragment buffered, seeking to offset:", offset);
-        if (offset > 0) {
-          video.currentTime = offset;
-        }
-        tryPlayVideo();
-      });
-
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = url;
-      video.addEventListener("loadedmetadata", () => {
-        video.currentTime = offset;
-        tryPlayVideo();
-      });
-    } else {
-      document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
-    }
+    // Trick: Avoid player freeze by appending dummy param to HLS URL
+    const finalURL = url + (url.includes("?") ? "&" : "?") + "nocache=" + Math.floor(Math.random() * 1000000);
+    loadVideoStream(finalURL);
 
     updateSpeakerIcon();
   </script>
