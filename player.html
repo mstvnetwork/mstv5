@@ -8,29 +8,19 @@
       margin: 0;
       padding: 0;
       background: black;
+      width: 100%;
       height: 100%;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .video-container {
-      position: relative;
-      width: 90vw;
-      max-width: 100%;
-      aspect-ratio: 16 / 9;
-      background: black;
-      border: 4px solid gold;
-      border-radius: 10px;
       overflow: hidden;
     }
 
     #video {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
-      background: black;
       object-fit: cover;
+      background: black;
     }
 
     #speakerToggle {
@@ -55,10 +45,8 @@
   </style>
 </head>
 <body>
-  <div class="video-container">
-    <video id="video" autoplay playsinline muted></video>
-    <div id="speakerToggle">🔇</div>
-  </div>
+  <video id="video" autoplay playsinline muted></video>
+  <div id="speakerToggle">🔇</div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
@@ -68,7 +56,6 @@
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
 
-    // Restore mute state from sessionStorage
     const savedMuteState = sessionStorage.getItem("playerMuted");
     video.muted = savedMuteState === null ? true : savedMuteState === "true";
 
@@ -93,22 +80,14 @@
         hls.loadSource(finalURL);
         hls.attachMedia(video);
 
-        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-          console.log("Media attached to video element");
-        });
-
         hls.on(Hls.Events.LEVEL_LOADED, () => {
-          console.log("Level loaded, setting offset if any...");
-          if (offset > 0) {
-            video.currentTime = offset;
-          }
+          if (offset > 0) video.currentTime = offset;
           tryPlay();
         });
 
         window.addEventListener("beforeunload", () => {
           hls.destroy();
         });
-
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
         video.src = finalURL;
         video.addEventListener("loadedmetadata", () => {
