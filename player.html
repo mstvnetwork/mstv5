@@ -1,4 +1,4 @@
-l<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -10,12 +10,27 @@ l<!DOCTYPE html>
       background: black;
       height: 100%;
       overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .video-container {
+      position: relative;
+      width: 90vw;
+      max-width: 100%;
+      aspect-ratio: 16 / 9;
+      background: black;
+      border: 4px solid gold;
+      border-radius: 10px;
+      overflow: hidden;
     }
 
     #video {
       width: 100%;
       height: 100%;
       background: black;
+      object-fit: cover;
     }
 
     #speakerToggle {
@@ -40,8 +55,10 @@ l<!DOCTYPE html>
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline controls muted></video>
-  <div id="speakerToggle">🔇</div>
+  <div class="video-container">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="speakerToggle">🔇</div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
@@ -80,10 +97,6 @@ l<!DOCTYPE html>
           console.log("Media attached to video element");
         });
 
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          console.log("Manifest parsed, waiting for metadata...");
-        });
-
         hls.on(Hls.Events.LEVEL_LOADED, () => {
           console.log("Level loaded, setting offset if any...");
           if (offset > 0) {
@@ -92,7 +105,6 @@ l<!DOCTYPE html>
           tryPlay();
         });
 
-        // Clean up on reload (optional but good practice)
         window.addEventListener("beforeunload", () => {
           hls.destroy();
         });
@@ -113,7 +125,6 @@ l<!DOCTYPE html>
       throw new Error("Missing URL");
     }
 
-    // Trick: Avoid player freeze by appending dummy param to HLS URL
     const finalURL = url + (url.includes("?") ? "&" : "?") + "nocache=" + Math.floor(Math.random() * 1000000);
     loadVideoStream(finalURL);
 
