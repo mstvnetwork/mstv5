@@ -40,25 +40,21 @@
   </style>
 </head>
 <body>
-  <video id="video" autoplay muted playsinline></video>
-
-  <!-- Emoji Speaker Button -->
+  <video id="video" autoplay playsinline></video>
   <div id="speakerToggle">🔇</div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById("video");
     const speakerToggle = document.getElementById("speakerToggle");
-
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
 
-    // Set initial mute state from sessionStorage (persistent across iframe reloads)
+    // Restore mute state from sessionStorage
     const savedMuteState = sessionStorage.getItem("playerMuted");
     video.muted = savedMuteState === null ? true : savedMuteState === "true";
 
-    // Update speaker emoji icon based on mute state
     function updateSpeakerIcon() {
       speakerToggle.textContent = video.muted ? "🔇" : "🔊";
       speakerToggle.classList.toggle("hidden", !video.muted);
@@ -70,30 +66,54 @@
       updateSpeakerIcon();
     });
 
-    // Play video starting from offset
-    function playVideoWithOffset() {
-      video.currentTime = offset;
-      video.play().catch(err => console.warn("Autoplay blocked:", err));
-    }
-
     if (!url) {
       document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
       throw new Error("Missing URL");
     }
 
+    function tryPlayVideo() {
+      video.play().catch(err => {
+        console.warn("Autoplay or playback blocked:", err);
+      });
+    }
+
     if (Hls.isSupported()) {
-      const hls = new Hls();
+      const hls = new Hls({
+        startPosition: offset
+      });
+
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, playVideoWithOffset);
+
+      hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+        console.log("Media attached");
+      });
+
+      hls.on(Hls.Events.BUFFER_APPENDED, () => {
+        console.log("Buffer appended");
+        if (video.readyState >= 2) {
+          tryPlayVideo();
+        }
+      });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, () => {
+        console.log("Fragment buffered, seeking to offset:", offset);
+        if (offset > 0) {
+          video.currentTime = offset;
+        }
+        tryPlayVideo();
+      });
+
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
-      video.addEventListener("loadedmetadata", playVideoWithOffset);
+      video.addEventListener("loadedmetadata", () => {
+        video.currentTime = offset;
+        tryPlayVideo();
+      });
     } else {
       document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
     }
 
-    // Set initial icon state
     updateSpeakerIcon();
   </script>
 </body>
