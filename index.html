@@ -59,77 +59,77 @@
       return d;
     }
 
-    // Define playlists for multiple channels, starting from 16:10 AEST
+    // Define playlists for multiple channels, starting from 16:32 AEST
     const channelPlaylists = {
       '1': [ // Playlist for Channel 1
         {
           url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:10", // Starts at 4:10 PM AEST
-          endTime: "16:12"    // Plays for 2 minutes
+          startTime: "16:32", // Starts at 4:32 PM AEST
+          endTime: "16:34"    // Plays for 2 minutes
         },
         {
           url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:12", // Starts immediately after previous
-          endTime: "16:14"
+          startTime: "16:34", // Starts immediately after previous
+          endTime: "16:36"
         },
         {
           url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:14",
-          endTime: "16:16"
+          startTime: "16:36",
+          endTime: "16:38"
         },
         {
           url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:16",
+          startTime: "16:38",
           endTime: "23:59" // Plays until end of day
         }
       ],
       '2': [ // Playlist for Channel 2 - Different schedule using the same URLs
         {
           url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:10",
-          endTime: "16:13"
+          startTime: "16:32",
+          endTime: "16:35"
         },
         {
           url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:13",
-          endTime: "16:16"
+          startTime: "16:35",
+          endTime: "16:38"
         },
         {
           url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:16",
-          endTime: "16:19"
+          startTime: "16:38",
+          endTime: "16:41"
         },
         {
           url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:19",
+          startTime: "16:41",
           endTime: "23:59"
         }
       ],
       '3': [ // Playlist for Channel 3 - Another variation
         {
           url: "https://content.jwplatform.com/manifests/vM7nH0Kl.m3u8",
-          startTime: "16:10",
-          endTime: "16:11"
+          startTime: "16:32",
+          endTime: "16:33"
         },
         {
           url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-          startTime: "16:11",
-          endTime: "16:13"
+          startTime: "16:33",
+          endTime: "16:35"
         },
         {
           url: "http://sample.vodobox.net/skate_phantom_flex_4k/skate_phantom_flex_4k.m3u8",
-          startTime: "16:13",
-          endTime: "16:15"
+          startTime: "16:35",
+          endTime: "16:37"
         },
         {
           url: "https://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8",
-          startTime: "16:15",
+          startTime: "16:37",
           endTime: "23:59"
         }
       ]
     };
 
-    // Corrected function: 'playlist' is now correctly passed as an argument
+    // This function now correctly accepts 'playlist' as an argument
     function findCurrentStream(now, playlist) {
       for (const item of playlist) {
         const start = todayAt(item.startTime);
@@ -169,7 +169,7 @@
         return;
       }
 
-      // Pass activePlaylist as the second argument to findCurrentStream
+      // This is where 'activePlaylist' is correctly passed to findCurrentStream
       const stream = findCurrentStream(now, activePlaylist);
 
       if (!stream) {
@@ -181,16 +181,19 @@
 
       const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
 
+      // Only update iframe source if it's actually changing, to prevent unnecessary reloads
       if (iframe.src !== src) {
         iframe.src = src;
         console.log("Iframe source updated to:", src);
-        hideMessage();
+        hideMessage(); // Hide any active messages once a stream is found and set
       } else {
-        // console.log("Iframe source is already correct:", src);
+        // console.log("Iframe source is already correct:", src); // Uncomment for debugging
       }
     }
 
+    // Initial call to set the correct stream when the page loads
     setIframeSrc();
+
     // For testing short intervals, set to 5000 (5 seconds) or 1000 (1 second).
     // REMEMBER TO CHANGE IT BACK TO 60000 (1 minute) FOR PRODUCTION!
     setInterval(setIframeSrc, 5000);
