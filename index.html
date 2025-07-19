@@ -2,150 +2,236 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Live TV Playlist (24h format)</title>
+  <title>Live TV Channel</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background-color: black;
+      color: white;
+      font-family: Arial, sans-serif;
     }
-    iframe {
+
+    #player-container {
+      flex-grow: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: black; /* Ensure background is black if player doesn't load */
+    }
+
+    #player-iframe {
       width: 100%;
       height: 100%;
       border: none;
+      display: block; /* Ensures no extra space below iframe */
     }
+
+    #channel-info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px 15px;
+      border-radius: 8px;
+      font-size: 1.1em;
+      z-index: 5; /* Below player controls but above video */
+    }
+
+    #current-time {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 0.9em;
+      z-index: 5;
+    }
+
+    #player-controls {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        z-index: 6; /* Above channel info */
+    }
+
+    #mute-button {
+        font-size: 28px; /* Bigger emoji */
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        padding: 8px;
+        cursor: pointer;
+        user-select: none;
+        color: white;
+    }
+
   </style>
 </head>
 <body>
 
-  <iframe id="playerIframe" src="" allowfullscreen allow="autoplay"></iframe>
+  <div id="player-container">
+    <iframe id="player-iframe" allow="autoplay; encrypted-media"></iframe>
+    <div id="channel-info">
+      <div id="stream-name">Loading...</div>
+      <div id="countdown"></div>
+    </div>
+    <div id="current-time"></div>
+    <div id="player-controls">
+        <div id="mute-button"></div>
+    </div>
+  </div>
 
   <script>
-    // Helper to create Date for today at given HH:MM string, local time
-    function todayAt(timeStr) {
-      const [h, m] = timeStr.split(':').map(Number);
-      const d = new Date();
-      d.setHours(h, m, 0, 0);
-      return d;
-    }
-
-    // Playlist with 24h schedule times (today's date is assumed)
-    // IMPORTANT: Ensure no gaps or overlaps for continuous playback.
-    // Ensure the playlist covers the full 24 hours if intended to be a continuous "channel".
+    // Define your playlist with start times (relative to an epoch or fixed point) and durations
+    // For simplicity, let's use durations. The start time of the first video is 0.
+    // Subsequent video start times are sum of previous durations.
+    // Make sure the total duration of the playlist is sufficient.
     const playlist = [
-      {
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-        startTime: "13:48", // Example: Adjusted to ensure enough playback time
-        endTime: "13:49"    // Example: This video plays for 5 minutes
-      },
-      {
-        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-        startTime: "13:49", // Starts exactly when the previous one ends
-        endTime: "13:50"    // Plays for 5 minutes
-      },
-      {
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", // Using the same URL for demonstration
-        startTime: "13:50",
-        endTime: "13:51"
-      },
-      {
-        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", // Using the same URL for demonstration
-        startTime: "13:51",
-        endTime: "13:52"
-      }
-      // Add more videos here. Make sure end time of one is start time of next.
+      { id: 'video1', name: 'Mux Test Stream', url: 'https://stream.mux.com/VZtzqxuNr202tnf200rxJ.m3u8', duration: 60 * 5 }, // 5 minutes
+      { id: 'video2', name: 'Sintel Open Movie', url: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8', duration: 60 * 15 }, // 15 minutes
+      { id: 'video3', name: 'Mux Test Stream 2', url: 'https://stream.mux.com/x36xhzz/x36xhzz.m3u8', duration: 60 * 30 }, // 30 minutes
+      // Add more videos as needed to extend the channel
     ];
 
-    let currentStreamUrl = null; // Track currently playing stream URL to avoid unnecessary reloads
-    let currentIntervalId = null; // To clear the previous interval/timeout
+    const playerIframe = document.getElementById('player-iframe');
+    const streamNameDiv = document.getElementById('stream-name');
+    const countdownDiv = document.getElementById('countdown');
+    const currentTimeDiv = document.getElementById('current-time');
+    const muteButton = document.getElementById('mute-button');
 
-    function findCurrentStream(now) {
-      for (const item of playlist) {
-        const start = todayAt(item.startTime);
-        const end = todayAt(item.endTime);
+    let currentStreamIndex = -1;
+    let currentStreamStartTime = 0; // Absolute start time of the current stream in milliseconds since epoch
+    let nextStreamCheckTimer = null;
+    let timeUpdateInterval = null;
+    let currentStreamUrl = ''; // To track the currently loaded stream URL in the iframe
+    let isMuted = localStorage.getItem('playerMutedState') === 'true'; // Get initial mute state from localStorage
 
-        if (now >= start && now < end) {
-          return { url: item.url, offset: (now - start) / 1000, endTime: end };
-        }
-      }
-      return null;
+    function updateMuteButtonIcon() {
+        muteButton.textContent = isMuted ? '🔇' : '🔊';
     }
 
-    function scheduleNextStreamCheck(endTime) {
-        if (currentIntervalId) {
-            clearTimeout(currentIntervalId); // Clear any previous scheduled check
-        }
+    muteButton.addEventListener('click', () => {
+        isMuted = !isMuted;
+        localStorage.setItem('playerMutedState', isMuted); // Save preference
+        updateMuteButtonIcon();
 
-        const now = new Date();
-        const timeUntilNext = endTime.getTime() - now.getTime();
-
-        if (timeUntilNext > 0) {
-            // Schedule check slightly after the current stream's end time
-            // Add a small buffer (e.g., 500ms) to ensure we're past the end
-            currentIntervalId = setTimeout(setIframeSrc, timeUntilNext + 500);
-            console.log(`Next stream check scheduled in ${timeUntilNext + 500}ms.`);
-        } else {
-            // If somehow we've missed the transition, check immediately
-            console.log("Current stream has already ended or time is negative, checking immediately.");
-            setIframeSrc();
-        }
-    }
-
-    function setIframeSrc() {
-      const now = new Date();
-      const stream = findCurrentStream(now);
-      const iframe = document.getElementById("playerIframe");
-
-      if (!stream) {
-        console.log("No stream scheduled for the current time.");
-        iframe.src = ""; // Or a placeholder HTML page
-        currentStreamUrl = null; // Reset
-        if (currentIntervalId) {
-            clearTimeout(currentIntervalId); // Clear any pending timeout
-        }
-        // If no stream, maybe schedule a periodic check until one becomes available
-        currentIntervalId = setTimeout(setIframeSrc, 30000); // Check every 30 seconds if no stream
-        return;
-      }
-
-      // Get the persistent mute state from localStorage (or default to true/muted)
-      // Default to 'true' (muted) if not found in localStorage, which is safer for autoplay.
-      const isMuted = localStorage.getItem('playerMutedState') === 'true';
-
-      const newSrc = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}&muted=${isMuted}`;
-
-      // Only update iframe src if the URL or mute state has changed to prevent unnecessary reloads
-      // We explicitly check for URL change here, and the muted state is always passed.
-      if (currentStreamUrl !== stream.url || iframe.src !== window.location.origin + newSrc) {
-         console.log(`Loading new stream: ${stream.url} with offset ${Math.floor(stream.offset)} and muted=${isMuted}`);
-         iframe.src = newSrc;
-         currentStreamUrl = stream.url; // Update tracking
-      } else {
-         console.log(`Stream ${stream.url} is still current, no change.`);
-      }
-
-      // Schedule the next check based on the current stream's end time
-      scheduleNextStreamCheck(stream.endTime);
-    }
-
-    // Initial call
-    setIframeSrc();
-
-    // Add a listener to ensure that if player.html sends a message about its mute state,
-    // we can update localStorage accordingly. This is a fallback/extra check.
-    window.addEventListener('message', function(event) {
-        // Ensure the message is from our iframe and has the correct type
-        if (event.origin === window.location.origin && event.data && event.data.type === 'muteStateChange') {
-            localStorage.setItem('playerMutedState', event.data.muted);
-            console.log("Mute state received from player and updated in localStorage:", event.data.muted);
+        // Send message to iframe to update its mute state
+        if (playerIframe.contentWindow) {
+            playerIframe.contentWindow.postMessage({ type: 'muteToggle', muted: isMuted }, '*');
         }
     });
 
-  </script>
+    // Listen for mute state changes from the iframe
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'muteStateChange') {
+            isMuted = event.data.muted;
+            localStorage.setItem('playerMutedState', isMuted);
+            updateMuteButtonIcon();
+            console.log("Mute state received from player and updated in localStorage:", isMuted);
+        }
+    });
 
+
+    function loadStream(index) {
+      if (index >= playlist.length) {
+        // Loop back to the beginning if end of playlist is reached
+        index = 0;
+      }
+
+      currentStreamIndex = index;
+      const stream = playlist[currentStreamIndex];
+
+      // Calculate the absolute start time of this stream in the continuous channel
+      currentStreamStartTime = 0;
+      for (let i = 0; i < currentStreamIndex; i++) {
+        currentStreamStartTime += playlist[i].duration * 1000;
+      }
+
+      // Calculate the offset into the stream based on current time
+      const now = Date.now(); // Current absolute time
+      const timeElapsedInChannel = (now % getTotalPlaylistDurationMs()); // Time elapsed since the "start" of the channel's current loop
+      let calculatedOffset = 0;
+      let tempTotalDuration = 0;
+
+      for (let i = 0; i <= currentStreamIndex; i++) {
+        tempTotalDuration += playlist[i].duration * 1000;
+        if (timeElapsedInChannel < tempTotalDuration) {
+          calculatedOffset = playlist[i].duration - (tempTotalDuration - timeElapsedInChannel) / 1000;
+          break;
+        }
+      }
+
+      // Ensure offset is not negative or exceeding duration
+      calculatedOffset = Math.max(0, Math.min(calculatedOffset, stream.duration));
+
+      currentStreamUrl = stream.url; // Update the tracking variable
+
+      const playerUrl = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(calculatedOffset)}&muted=${isMuted}`;
+      console.log(`Loading new stream: ${stream.url} with offset ${Math.floor(calculatedOffset)} and muted=${isMuted}`);
+      playerIframe.src = playerUrl;
+
+      streamNameDiv.textContent = `Now Playing: ${stream.name}`;
+
+      // Schedule next stream check
+      const remainingTimeMs = (stream.duration - calculatedOffset) * 1000;
+      if (nextStreamCheckTimer) {
+        clearTimeout(nextStreamCheckTimer);
+      }
+      nextStreamCheckTimer = setTimeout(() => {
+        console.log('Switching to next stream...');
+        loadStream(currentStreamIndex + 1);
+      }, remainingTimeMs);
+      console.log(`Next stream check scheduled in ${remainingTimeMs}ms.`);
+    }
+
+    function getTotalPlaylistDurationMs() {
+      return playlist.reduce((sum, video) => sum + video.duration * 1000, 0);
+    }
+
+    function updateCountdown() {
+      const now = Date.now();
+      const stream = playlist[currentStreamIndex];
+      if (!stream) return;
+
+      const timeElapsedInChannel = (now % getTotalPlaylistDurationMs());
+      let remainingInCurrentStream = 0;
+      let tempTotalDuration = 0;
+      for (let i = 0; i <= currentStreamIndex; i++) {
+        tempTotalDuration += playlist[i].duration * 1000;
+        if (timeElapsedInChannel < tempTotalDuration) {
+          remainingInCurrentStream = (tempTotalDuration - timeElapsedInChannel) / 1000;
+          break;
+        }
+      }
+
+      const minutes = Math.floor(remainingInCurrentStream / 60);
+      const seconds = Math.floor(remainingInCurrentStream % 60);
+      countdownDiv.textContent = `Next in: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      currentTimeDiv.textContent = `Current Time: ${new Date(now).toLocaleTimeString()}`;
+    }
+
+    // Initial load
+    updateMuteButtonIcon();
+    loadStream(0); // Start with the first stream
+
+    // Update countdown every second
+    timeUpdateInterval = setInterval(updateCountdown, 1000);
+
+    // Initial mute state check and apply
+    playerIframe.onload = () => {
+        // This is important for initial load and subsequent reloads of player.html within iframe
+        // Ensure the mute state in the iframe matches the parent's saved state
+        if (playerIframe.contentWindow && currentStreamUrl) {
+            playerIframe.contentWindow.postMessage({ type: 'muteToggle', muted: isMuted }, '*');
+        }
+    };
+
+  </script>
 </body>
 </html>
