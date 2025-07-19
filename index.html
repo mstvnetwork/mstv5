@@ -42,31 +42,59 @@
     // IMPORTANT: Adjust these times to your actual desired schedule.
     // Ensure the times are in 24-hour format (HH:MM).
     // The example uses arbitrary times for demonstration.
-    const playlist = [
-      {
-        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", // Example URL 1
-        startTime: "15:07", // 2:20 PM
-        endTime: "15:08"    // 2:21 PM
-      },
-      {
-        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", // Example URL 2
-        startTime: "15:08", // 2:21 PM
-        endTime: "15:15"    // 2:28 PM
-      }
-      // Add more channels/segments here
-      /*
-      {
-        url: "YOUR_STREAM_URL_3.m3u8",
-        startTime: "14:28",
-        endTime: "14:35"
-      },
-      {
-        url: "YOUR_STREAM_URL_4.m3u8",
-        startTime: "14:35",
-        endTime: "14:45"
-      }
-      */
-    ];
+    const channelPlaylists = {
+  '1': [ // Playlist for Channel 1 (Default channel)
+    {
+      url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8", 
+      startTime: "15:45",
+      endTime: "15:47"   
+    },
+    {
+      url: "https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8",
+      startTime: "15:47", 
+      endTime: "15:48"  
+    },
+    {
+      url: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8", 
+      startTime: "15:48",
+      endTime: "15:49"   
+    }
+  ],
+  '2': [ // Playlist for Channel 2
+    {
+      url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", 
+      startTime: "00:00",
+      endTime: "12:00"
+    },
+    {
+      url: "https://playertest.longtailvideo.com/adaptive/oceans_aes/oceans_aes.m3u8", 
+      startTime: "15:45",
+      endTime: "15:46"
+    },
+    {
+      url: "https://storage.googleapis.com/shaka-demo-assets/angel-one-hls/hls.m3u8",
+      startTime: "15:46",
+      endTime: "15:47"
+    }
+  ],
+  '3': [ // Playlist for Channel 3
+    {
+      url: "https://www.streambox.fr/playlists/test_001/stream.m3u8", 
+      startTime: "15:45",
+      endTime: "15:50"
+    },
+    {
+      url: "https://livesim.dashif.org/livesim/scte35_2/testpic_2s/source.m3u8",
+      startTime: "15:50",
+      endTime: "15:55"
+    },
+    {
+      url: "https://d3rlna7yzkd6jn.cloudfront.net/out/v1/fe19a557b6ed41f4b2f293998f4e6012/manifest.m3u8",
+      startTime: "15:55",
+      endTime: "16:00"
+    }
+  ]
+};
 
     function findCurrentStream(now) {
       for (const item of playlist) {
