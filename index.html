@@ -2,236 +2,79 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Live TV Channel</title>
+  <title>Live TV Playlist (24h format)</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      background: #000;
       display: flex;
-      flex-direction: column;
-      background-color: black;
-      color: white;
-      font-family: Arial, sans-serif;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-
-    #player-container {
-      flex-grow: 1;
-      position: relative;
-      width: 100%;
-      height: 100%;
-      background: black; /* Ensure background is black if player doesn't load */
+    iframe {
+      width: 90%;
+      height: 50vh;
+      border: 4px solid gold;
+      border-radius: 10px;
     }
-
-    #player-iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block; /* Ensures no extra space below iframe */
-    }
-
-    #channel-info {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px 15px;
-      border-radius: 8px;
-      font-size: 1.1em;
-      z-index: 5; /* Below player controls but above video */
-    }
-
-    #current-time {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 5px 10px;
-      border-radius: 5px;
-      font-size: 0.9em;
-      z-index: 5;
-    }
-
-    #player-controls {
-        position: absolute;
-        bottom: 10px;
-        right: 10px;
-        z-index: 6; /* Above channel info */
-    }
-
-    #mute-button {
-        font-size: 28px; /* Bigger emoji */
-        background: rgba(0, 0, 0, 0.5);
-        border-radius: 50%;
-        padding: 8px;
-        cursor: pointer;
-        user-select: none;
-        color: white;
-    }
-
   </style>
 </head>
 <body>
 
-  <div id="player-container">
-    <iframe id="player-iframe" allow="autoplay; encrypted-media"></iframe>
-    <div id="channel-info">
-      <div id="stream-name">Loading...</div>
-      <div id="countdown"></div>
-    </div>
-    <div id="current-time"></div>
-    <div id="player-controls">
-        <div id="mute-button"></div>
-    </div>
-  </div>
+  <iframe id="playerIframe" src="" allowfullscreen></iframe>
 
   <script>
-    // Define your playlist with start times (relative to an epoch or fixed point) and durations
-    // For simplicity, let's use durations. The start time of the first video is 0.
-    // Subsequent video start times are sum of previous durations.
-    // Make sure the total duration of the playlist is sufficient.
+    // Helper to create Date for today at given HH:MM string, local time
+    function todayAt(timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d;
+    }
+
+    // Playlist with 24h schedule times (today's date is assumed)
     const playlist = [
-      { id: 'video1', name: 'Mux Test Stream', url: 'https://stream.mux.com/VZtzqxuNr202tnf200rxJ.m3u8', duration: 60 * 5 }, // 5 minutes
-      { id: 'video2', name: 'Sintel Open Movie', url: 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8', duration: 60 * 15 }, // 15 minutes
-      { id: 'video3', name: 'Mux Test Stream 2', url: 'https://stream.mux.com/x36xhzz/x36xhzz.m3u8', duration: 60 * 30 }, // 30 minutes
-      // Add more videos as needed to extend the channel
+      {
+        url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+        startTime: "14:17",
+        endTime: "14:18"
+      },
+      {
+        url: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+        startTime: "14:18",
+        endTime: "14:19"
+      }
     ];
 
-    const playerIframe = document.getElementById('player-iframe');
-    const streamNameDiv = document.getElementById('stream-name');
-    const countdownDiv = document.getElementById('countdown');
-    const currentTimeDiv = document.getElementById('current-time');
-    const muteButton = document.getElementById('mute-button');
-
-    let currentStreamIndex = -1;
-    let currentStreamStartTime = 0; // Absolute start time of the current stream in milliseconds since epoch
-    let nextStreamCheckTimer = null;
-    let timeUpdateInterval = null;
-    let currentStreamUrl = ''; // To track the currently loaded stream URL in the iframe
-    let isMuted = localStorage.getItem('playerMutedState') === 'true'; // Get initial mute state from localStorage
-
-    function updateMuteButtonIcon() {
-        muteButton.textContent = isMuted ? '🔇' : '🔊';
+    function findCurrentStream(now) {
+      for (const item of playlist) {
+        const start = todayAt(item.startTime);
+        const end = todayAt(item.endTime);
+        if (now >= start && now < end) {
+          return { url: item.url, offset: (now - start) / 1000 };
+        }
+      }
+      return null;
     }
 
-    muteButton.addEventListener('click', () => {
-        isMuted = !isMuted;
-        localStorage.setItem('playerMutedState', isMuted); // Save preference
-        updateMuteButtonIcon();
+    function setIframeSrc() {
+      const now = new Date();
+      const stream = findCurrentStream(now);
+      const iframe = document.getElementById("playerIframe");
 
-        // Send message to iframe to update its mute state
-        if (playerIframe.contentWindow) {
-            playerIframe.contentWindow.postMessage({ type: 'muteToggle', muted: isMuted }, '*');
-        }
-    });
-
-    // Listen for mute state changes from the iframe
-    window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'muteStateChange') {
-            isMuted = event.data.muted;
-            localStorage.setItem('playerMutedState', isMuted);
-            updateMuteButtonIcon();
-            console.log("Mute state received from player and updated in localStorage:", isMuted);
-        }
-    });
-
-
-    function loadStream(index) {
-      if (index >= playlist.length) {
-        // Loop back to the beginning if end of playlist is reached
-        index = 0;
+      if (!stream) {
+        iframe.src = ""; // no stream right now
+        return;
       }
 
-      currentStreamIndex = index;
-      const stream = playlist[currentStreamIndex];
-
-      // Calculate the absolute start time of this stream in the continuous channel
-      currentStreamStartTime = 0;
-      for (let i = 0; i < currentStreamIndex; i++) {
-        currentStreamStartTime += playlist[i].duration * 1000;
-      }
-
-      // Calculate the offset into the stream based on current time
-      const now = Date.now(); // Current absolute time
-      const timeElapsedInChannel = (now % getTotalPlaylistDurationMs()); // Time elapsed since the "start" of the channel's current loop
-      let calculatedOffset = 0;
-      let tempTotalDuration = 0;
-
-      for (let i = 0; i <= currentStreamIndex; i++) {
-        tempTotalDuration += playlist[i].duration * 1000;
-        if (timeElapsedInChannel < tempTotalDuration) {
-          calculatedOffset = playlist[i].duration - (tempTotalDuration - timeElapsedInChannel) / 1000;
-          break;
-        }
-      }
-
-      // Ensure offset is not negative or exceeding duration
-      calculatedOffset = Math.max(0, Math.min(calculatedOffset, stream.duration));
-
-      currentStreamUrl = stream.url; // Update the tracking variable
-
-      const playerUrl = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(calculatedOffset)}&muted=${isMuted}`;
-      console.log(`Loading new stream: ${stream.url} with offset ${Math.floor(calculatedOffset)} and muted=${isMuted}`);
-      playerIframe.src = playerUrl;
-
-      streamNameDiv.textContent = `Now Playing: ${stream.name}`;
-
-      // Schedule next stream check
-      const remainingTimeMs = (stream.duration - calculatedOffset) * 1000;
-      if (nextStreamCheckTimer) {
-        clearTimeout(nextStreamCheckTimer);
-      }
-      nextStreamCheckTimer = setTimeout(() => {
-        console.log('Switching to next stream...');
-        loadStream(currentStreamIndex + 1);
-      }, remainingTimeMs);
-      console.log(`Next stream check scheduled in ${remainingTimeMs}ms.`);
+      const src = `player.html?url=${encodeURIComponent(stream.url)}&offset=${Math.floor(stream.offset)}`;
+      iframe.src = src;
     }
 
-    function getTotalPlaylistDurationMs() {
-      return playlist.reduce((sum, video) => sum + video.duration * 1000, 0);
-    }
-
-    function updateCountdown() {
-      const now = Date.now();
-      const stream = playlist[currentStreamIndex];
-      if (!stream) return;
-
-      const timeElapsedInChannel = (now % getTotalPlaylistDurationMs());
-      let remainingInCurrentStream = 0;
-      let tempTotalDuration = 0;
-      for (let i = 0; i <= currentStreamIndex; i++) {
-        tempTotalDuration += playlist[i].duration * 1000;
-        if (timeElapsedInChannel < tempTotalDuration) {
-          remainingInCurrentStream = (tempTotalDuration - timeElapsedInChannel) / 1000;
-          break;
-        }
-      }
-
-      const minutes = Math.floor(remainingInCurrentStream / 60);
-      const seconds = Math.floor(remainingInCurrentStream % 60);
-      countdownDiv.textContent = `Next in: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      currentTimeDiv.textContent = `Current Time: ${new Date(now).toLocaleTimeString()}`;
-    }
-
-    // Initial load
-    updateMuteButtonIcon();
-    loadStream(0); // Start with the first stream
-
-    // Update countdown every second
-    timeUpdateInterval = setInterval(updateCountdown, 1000);
-
-    // Initial mute state check and apply
-    playerIframe.onload = () => {
-        // This is important for initial load and subsequent reloads of player.html within iframe
-        // Ensure the mute state in the iframe matches the parent's saved state
-        if (playerIframe.contentWindow && currentStreamUrl) {
-            playerIframe.contentWindow.postMessage({ type: 'muteToggle', muted: isMuted }, '*');
-        }
-    };
-
+    setIframeSrc();
+    setInterval(setIframeSrc, 60000);
   </script>
+
 </body>
 </html>
