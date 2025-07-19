@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-M" />
   <title>HLS Player</title>
   <style>
     html, body {
@@ -9,7 +9,7 @@
       padding: 0;
       background: black;
       height: 100%;
-      overflow: hidden; /* Important for full-screen video */
+      overflow: hidden;
     }
 
     #video {
@@ -35,14 +35,23 @@
       transition: opacity 0.3s;
     }
 
+    /* Optional: Show overlay on hover for better UX if speakerToggle is initially hidden */
+    /*
     #speakerToggle.hidden {
       opacity: 0;
-      pointer-events: none; /* Disable clicks when hidden */
+      pointer-events: none;
     }
+    body:hover #speakerToggle.hidden {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    */
   </style>
 </head>
 <body>
-  <video id="video" autoplay playsinline></video> <div id="speakerToggle"></div> <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <video id="video" playsinline></video> <div id="speakerToggle"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById("video");
     const speakerToggle = document.getElementById("speakerToggle");
@@ -50,16 +59,19 @@
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const offset = parseInt(params.get("offset")) || 0;
-    const initialMutedState = params.get("muted") === 'true'; // Get initial mute state from URL parameter
+    const initialMutedState = params.get("muted") === 'true';
 
     // Set initial mute state based on parameter from index.html
     video.muted = initialMutedState;
+    console.log("Player initialized. Video URL:", url, "Offset:", offset, "Initial Muted:", initialMutedState);
 
     // Handle toggle
     function updateSpeakerIcon() {
       speakerToggle.textContent = video.muted ? "🔇" : "🔊";
-      // The button should always be visible so the user can unmute if initially muted
-      // speakerToggle.classList.toggle("hidden", !video.muted); // Removed this line
+      // This button should always be visible so the user can interact.
+      // If you want to hide it when unmuted, uncomment the line below,
+      // but consider adding a hover effect (see CSS comments).
+      // speakerToggle.classList.toggle("hidden", !video.muted);
     }
 
     speakerToggle.addEventListener("click", () => {
@@ -67,77 +79,133 @@
       updateSpeakerIcon();
       // Store the mute state in localStorage
       localStorage.setItem('playerMutedState', video.muted);
-      // Optionally, inform the parent frame (index.html) about the change
+      // Inform the parent frame (index.html) about the change
       window.parent.postMessage({ type: 'muteStateChange', muted: video.muted }, '*');
+      console.log("Speaker toggled. Muted:", video.muted);
+      // If video was paused (e.g., due to autoplay block), attempt to play
+      if (!video.paused) {
+          video.play().catch(e => console.warn("Play attempt after unmute failed:", e));
+      }
     });
 
-    // HLS playback
-    function playVideoWithOffset() {
-      video.currentTime = offset;
-      // Attempt to play. If autoplay is blocked, the promise will reject.
-      video.play().catch(err => {
-        console.warn("Autoplay blocked:", err);
-        // If autoplay is blocked, ensure the speaker icon is visible and reflects the muted state.
-        // The user will need to interact to play the video with sound.
-        updateSpeakerIcon(); // Ensure icon is shown for user to interact
-      });
+    // Function to handle video playback attempts with offset
+    function attemptVideoPlayWithOffset() {
+        if (video.readyState >= 2) { // HAVE_CURRENT_DATA or greater
+            console.log(`Video readyState: ${video.readyState}. Setting currentTime to ${offset} and attempting play.`);
+            video.currentTime = offset;
+            video.play().then(() => {
+                console.log("Video playback started successfully.");
+                updateSpeakerIcon(); // Update icon after successful play (e.g. if autoplay was blocked)
+            }).catch(err => {
+                console.warn("Autoplay blocked or play failed:", err.name, err.message);
+                // Ensure icon is visible if autoplay blocked, so user can interact
+                updateSpeakerIcon();
+                // Optionally, show a "click to play" message
+            });
+        } else {
+            console.log(`Video not ready yet (readyState: ${video.readyState}). Retrying play attempt in 100ms.`);
+            setTimeout(attemptVideoPlayWithOffset, 100); // Retry if not ready
+        }
     }
+
 
     if (!url) {
       document.body.innerHTML += "<p style='color:white;'>No stream URL provided.</p>";
+      console.error("Missing stream URL!");
       throw new Error("Missing URL");
     }
 
     if (Hls.isSupported()) {
-      const hls = new Hls();
+      const hls = new Hls({
+        // Optional HLS.js configuration for smoother playback:
+        // You might need to experiment with these values for your specific streams
+        // liveSyncDurationCount: 2, // How many segments ahead of live edge to buffer
+        // liveMaxLatencyDuration: 5, // Max buffer to allow before seeking to live edge
+        // fragLoadingMaxRetry: 6, // Max retries for segment loading
+        // fragLoadingRetryDelay: 1000, // Delay between retries
+      });
+
+      console.log("HLS.js supported. Loading source:", url);
       hls.loadSource(url);
       hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log("Manifest parsed. Attempting to play with offset:", offset);
-        playVideoWithOffset();
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log("HLS: MANIFEST_PARSED. Levels:", data.levels.length);
+        // Attempt to play after manifest is parsed.
+        attemptVideoPlayWithOffset();
       });
+
+      hls.on(Hls.Events.FRAG_BUFFERED, (event, data) => {
+        // console.log("HLS: FRAG_BUFFERED. Time:", data.frag.start); // Too verbose for production
+      });
+
+      hls.on(Hls.Events.BUFFER_APPENDED, (event, data) => {
+        // console.log("HLS: BUFFER_APPENDED. Segment:", data.segment); // Too verbose
+      });
+
       hls.on(Hls.Events.ERROR, function (event, data) {
+        console.error("HLS Error:", data.type, data.details, data.fatal);
         if (data.fatal) {
           switch(data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error("Fatal network error encountered, trying to recover...");
-              hls.startLoad();
+              console.error("Fatal network error encountered. Trying to recover...");
+              hls.startLoad(); // Attempt to re-start loading
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error("Fatal media error encountered, trying to recover...");
-              hls.recoverMediaError();
+              console.error("Fatal media error encountered. Trying to recover...");
+              hls.recoverMediaError(); // Attempt to recover media playback
               break;
             default:
-              // cannot recover
+              console.error("Unrecoverable HLS error. Destroying HLS instance.");
               hls.destroy();
+              // Potentially reload the iframe or show an error message
               break;
           }
         }
       });
+      hls.on(Hls.Events.BUFFER_FLUSHING, () => console.log("HLS: BUFFER_FLUSHING"));
+      hls.on(Hls.Events.BUFFER_EOS, () => console.log("HLS: BUFFER_EOS (End of Stream)"));
+      hls.on(Hls.Events.BUFFER_FULL, () => console.log("HLS: BUFFER_FULL"));
+      hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => console.log("HLS: LEVEL_SWITCHED to", data.level));
+
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      console.log("Native HLS supported. Loading source:", url);
       video.src = url;
       video.addEventListener("loadedmetadata", () => {
-        console.log("Metadata loaded. Attempting to play with offset:", offset);
-        playVideoWithOffset();
+        console.log("Video: loadedmetadata.");
+        attemptVideoPlayWithOffset();
       });
       video.addEventListener('error', (e) => {
         console.error("Native video error:", e);
       });
     } else {
       document.body.innerHTML += "<p style='color:white;'>HLS not supported in this browser.</p>";
+      console.error("HLS not supported in this browser.");
     }
 
-    // Initial icon state on load
+    // Listen for the 'playing' event to ensure the icon is updated when playback actually begins.
+    video.addEventListener('playing', () => {
+        console.log("Video 'playing' event fired.");
+        updateSpeakerIcon();
+    });
+
+    // Listen for 'pause' or 'waiting' events to understand playback interruptions
+    video.addEventListener('waiting', () => console.log("Video 'waiting' for data..."));
+    video.addEventListener('stalled', () => console.log("Video 'stalled' (data not coming fast enough)..."));
+    video.addEventListener('ended', () => console.log("Video 'ended' (stream finished)."));
+    video.addEventListener('pause', () => console.log("Video 'paused'."));
+
+    // Initial icon state on load (before video even starts playing)
     updateSpeakerIcon();
 
     // Store initial muted state to localStorage if it's the first load
     // This makes sure that if the user loads the page for the very first time,
-    // the initial 'muted' state (which is true due to autoplay policies) is saved.
+    // the initial 'muted' state (which defaults to true/muted for autoplay policies) is saved.
     // Subsequently, the state from localStorage will be used.
     if (localStorage.getItem('playerMutedState') === null) {
       localStorage.setItem('playerMutedState', video.muted);
+      console.log("Initial localStorage mute state set to:", video.muted);
     }
-
   </script>
 </body>
 </html>
