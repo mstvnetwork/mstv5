@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Custom Video Player</title>
+  <title>Custom HLS Player</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     html, body {
@@ -24,20 +24,32 @@
 <body>
   <video id="videoPlayer" controls autoplay muted playsinline></video>
 
+  <!-- Include hls.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
+    const video = document.getElementById("videoPlayer");
     const videoUrl = "https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8";
 
-    const video = document.getElementById("videoPlayer");
-    const source = document.createElement("source");
-
-    source.src = videoUrl;
-    source.type = "application/x-mpegURL";
-
-    video.appendChild(source);
-    video.load();
-    video.play().catch(err => {
-      console.warn("Autoplay blocked:", err);
-    });
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(videoUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        video.play().catch(err => {
+          console.warn("Autoplay blocked:", err);
+        });
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      // For Safari
+      video.src = videoUrl;
+      video.addEventListener('loadedmetadata', function () {
+        video.play().catch(err => {
+          console.warn("Autoplay blocked:", err);
+        });
+      });
+    } else {
+      document.body.innerHTML = "<p style='color:white;'>Your browser does not support HLS playback.</p>";
+    }
   </script>
 </body>
 </html>
