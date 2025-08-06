@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Global Sync Iframe Player (Autoplay)</title>
+  <title>Global Sync Iframe Player (Autoplay + Resume)</title>
   <style>
     body { margin: 0; font-family: sans-serif; background: #000; color: white; }
     #player-container { width: 100%; height: 90vh; position: relative; }
@@ -100,19 +100,25 @@
 
     function playCurrentSlot() {
       const { index, offset } = getCurrentSlot();
-      if (index === currentIndex) return;
-
-      currentIndex = index;
       const video = playlist[index];
+
+      if (index === currentIndex && offset < 2) return; // Avoid reload if within same slot and not much has changed
+      currentIndex = index;
+
       const iframe = document.getElementById('iframe-player');
       const spinner = document.getElementById('spinner');
-
       spinner.style.display = 'block';
       iframe.style.display = 'none';
 
+      // Append autoplay and attempt to set "start" time (if the source supports it)
       let autoplayUrl = video.url;
       if (!autoplayUrl.includes("autoplay=1")) {
         autoplayUrl += (autoplayUrl.includes("?") ? "&" : "?") + "autoplay=1";
+      }
+
+      // If source supports timestamp (e.g., YouTube or custom player), append it
+      if (autoplayUrl.includes("youtube.com/embed/") || autoplayUrl.includes("gdplayer.to")) {
+        autoplayUrl += `&start=${offset}`;
       }
 
       iframe.src = autoplayUrl;
