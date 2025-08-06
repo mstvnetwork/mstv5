@@ -25,24 +25,19 @@
   <video id="videoPlayer" controls autoplay muted playsinline></video>
 
   <script>
-    // Replace this with your actual direct video URL
-    const videoUrl = new URLSearchParams(location.search).get("https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8");
+    const videoUrl = "https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8";
 
-    if (!videoUrl) {
-      document.body.innerHTML = "<p style='color:white;'>No video URL provided. Use ?src=VIDEO_URL</p>";
-    } else {
-      const video = document.getElementById("videoPlayer");
-      const source = document.createElement("source");
+    const video = document.getElementById("videoPlayer");
+    const source = document.createElement("source");
 
-      source.src = videoUrl;
-      source.type = videoUrl.includes(".m3u8") ? "application/x-mpegURL" : "video/mp4";
+    source.src = videoUrl;
+    source.type = "application/x-mpegURL";
 
-      video.appendChild(source);
-      video.load();
-      video.play().catch(err => {
-        console.warn("Autoplay blocked:", err);
-      });
-    }
+    video.appendChild(source);
+    video.load();
+    video.play().catch(err => {
+      console.warn("Autoplay blocked:", err);
+    });
   </script>
 </body>
 </html>
