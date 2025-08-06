@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Global Sync Iframe Player</title>
+  <title>Global Sync Iframe Player (Autoplay)</title>
   <style>
     body { margin: 0; font-family: sans-serif; background: #000; color: white; }
     #player-container { width: 100%; height: 90vh; position: relative; }
@@ -39,12 +39,25 @@
       0% { transform: translateX(0); }
       100% { transform: translateX(-100%); }
     }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      font-size: 1.2em;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div id="player-container">
+    <div id="overlay" onclick="startPlayback()">▶️ Click to Start</div>
     <div id="spinner"></div>
-    <iframe id="iframe-player" allowfullscreen></iframe>
+    <iframe id="iframe-player" allow="autoplay; fullscreen"></iframe>
   </div>
   <div id="banner"><span>Loading playlist...</span></div>
 
@@ -53,63 +66,72 @@
     const ch = urlParams.get('ch') || '1';
     const playlistUrl = `sync-ch${ch}.json`;
 
+    let playlist = null;
+    let start_time_utc = null;
+    let currentIndex = -1;
+
     async function loadPlaylist() {
       const res = await fetch(playlistUrl);
-      return await res.json();
+      const json = await res.json();
+      playlist = json.video_list;
+      start_time_utc = Date.parse(json.start_time_utc);
     }
 
-    function getCurrentSlot(startTimeUtc, videoList) {
+    function getCurrentSlot() {
       const now = Date.now();
-      const startUtc = Date.parse(startTimeUtc);
-      const elapsed = Math.floor((now - startUtc) / 1000);
-      const total = videoList.reduce((a, v) => a + v.duration_seconds, 0);
-      const currentTime = elapsed % total;
+      const elapsed = Math.floor((now - start_time_utc) / 1000);
+      const total = playlist.reduce((a, v) => a + v.duration_seconds, 0);
+      const position = elapsed % total;
 
       let acc = 0;
-      for (let i = 0; i < videoList.length; i++) {
-        const video = videoList[i];
-        if (currentTime < acc + video.duration_seconds) {
-          return { index: i, startOffset: currentTime - acc };
+      for (let i = 0; i < playlist.length; i++) {
+        const v = playlist[i];
+        if (position < acc + v.duration_seconds) {
+          return { index: i, offset: position - acc };
         }
-        acc += video.duration_seconds;
+        acc += v.duration_seconds;
       }
-      return { index: 0, startOffset: 0 };
+      return { index: 0, offset: 0 };
     }
 
     function setBanner(text) {
       document.getElementById('banner').innerHTML = `<span>${text}</span>`;
     }
 
-    async function initPlayer() {
-      const data = await loadPlaylist();
-      const { start_time_utc, video_list } = data;
+    function playCurrentSlot() {
+      const { index, offset } = getCurrentSlot();
+      if (index === currentIndex) return;
 
-      function playSlot() {
-        const { index } = getCurrentSlot(start_time_utc, video_list);
-        const video = video_list[index];
+      currentIndex = index;
+      const video = playlist[index];
+      const iframe = document.getElementById('iframe-player');
+      const spinner = document.getElementById('spinner');
 
-        const iframe = document.getElementById('iframe-player');
-        const spinner = document.getElementById('spinner');
-        spinner.style.display = 'block';
-        iframe.style.display = 'none';
-        iframe.src = video.url;
+      spinner.style.display = 'block';
+      iframe.style.display = 'none';
 
-        setBanner(`Now Playing: ${video.title}`);
-
-        iframe.onload = () => {
-          spinner.style.display = 'none';
-          iframe.style.display = 'block';
-        };
-
-        // Schedule next slot
-        const nextIn = (video.duration_seconds - getCurrentSlot(start_time_utc, video_list).startOffset) * 1000;
-        setTimeout(playSlot, nextIn);
+      let autoplayUrl = video.url;
+      if (!autoplayUrl.includes("autoplay=1")) {
+        autoplayUrl += (autoplayUrl.includes("?") ? "&" : "?") + "autoplay=1";
       }
 
-      playSlot();
+      iframe.src = autoplayUrl;
+      setBanner(`Now Playing: ${video.title}`);
+
+      iframe.onload = () => {
+        spinner.style.display = 'none';
+        iframe.style.display = 'block';
+      };
+
+      const nextDelay = (video.duration_seconds - offset) * 1000;
+      setTimeout(playCurrentSlot, nextDelay);
     }
 
-    initPlayer();
+    async function startPlayback() {
+      document.getElementById("overlay").style.display = "none";
+      await loadPlaylist();
+      playCurrentSlot();
+    }
   </script>
 </body>
 </html>
