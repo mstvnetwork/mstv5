@@ -1,29 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Embedded M3U8 Player iframe</title>
-  <style>
-    body, html {
-      margin: 0; padding: 0; height: 100%;
-      display: flex; justify-content: center; align-items: center;
-      background: black;
-      height: 100vh;
-    }
-    iframe {
-      width: 100%;
-      max-width: 800px;
-      height: 450px;
-      border: none;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Iframe Playlist Player with Click-to-Start</title>
+<style>
+  body, html {
+    margin: 0; padding: 0; height: 100%;
+    background: black;
+    display: flex; justify-content: center; align-items: center;
+    font-family: sans-serif;
+    color: white;
+  }
+  #player-iframe {
+    width: 100%;
+    max-width: 800px;
+    height: 450px;
+    border: none;
+  }
+  #info {
+    text-align: center;
+    margin-top: 10px;
+  }
+  #overlay {
+    position: fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    cursor: pointer;
+    user-select: none;
+    z-index: 9999;
+  }
+</style>
 </head>
 <body>
-  <iframe 
-    src="https://anym3u8player.com/tv/p.php?url=https%3A%2F%2Fsi.videoapne.to%2Fhls%2F%2Cbdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq%2C.urlset%2Fmaster.m3u8&autoplay=1&muted=1" 
-    allowfullscreen 
-    allow="autoplay; fullscreen; encrypted-media">
-  </iframe>
+
+<div id="overlay">▶ Click to Start Playlist</div>
+
+<iframe id="player-iframe" allowfullscreen allow="autoplay; fullscreen; encrypted-media"></iframe>
+<div id="info"></div>
+
+<script>
+  const playlist = [
+    {
+      url: "https://anym3u8player.com/tv/p.php?url=https%3A%2F%2Fsi.videoapne.to%2Fhls%2F%2Cbdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq%2C.urlset%2Fmaster.m3u8",
+      title: "Video 1 - Anupamaa Stream",
+      duration: 1800 // 30 min
+    },
+    {
+      url: "https://anym3u8player.com/tv/p.php?url=https%3A%2F%2Fanother.example.com%2Fstream2.m3u8",
+      title: "Video 2 - Another Stream",
+      duration: 1500 // 25 min
+    }
+  ];
+
+  let currentIndex = 0;
+  const iframe = document.getElementById('player-iframe');
+  const info = document.getElementById('info');
+  const overlay = document.getElementById('overlay');
+  let playlistTimer;
+
+  function loadVideo(index) {
+    const video = playlist[index];
+    iframe.src = video.url;
+    info.textContent = `Now Playing: ${video.title} (${Math.floor(video.duration / 60)} min)`;
+
+    clearTimeout(playlistTimer);
+    playlistTimer = setTimeout(() => {
+      currentIndex = (currentIndex + 1) % playlist.length;
+      loadVideo(currentIndex);
+    }, video.duration * 1000);
+  }
+
+  overlay.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    loadVideo(currentIndex);
+  });
+</script>
+
 </body>
 </html>
