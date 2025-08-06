@@ -1,79 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Autoplay M3U8 with Click-to-Unmute Overlay</title>
-<style>
-  body, html {
-    margin: 0; padding: 0; height: 100%;
-    background: black;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  #player-container {
-    position: relative;
-    width: 640px;
-    height: 360px;
-  }
-  video {
-    width: 100%;
-    height: 100%;
-    background: black;
-  }
-  #overlay {
-    position: absolute;
-    top:0; left:0; right:0; bottom:0;
-    background: rgba(0,0,0,0.6);
-    color: white;
-    font-size: 24px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    user-select: none;
-    z-index: 2;
-  }
-</style>
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embedded M3U8 Player iframe</title>
+  <style>
+    body, html {
+      margin: 0; padding: 0; height: 100%;
+      display: flex; justify-content: center; align-items: center;
+      background: black;
+      height: 100vh;
+    }
+    iframe {
+      width: 100%;
+      max-width: 800px;
+      height: 450px;
+      border: none;
+    }
+  </style>
 </head>
 <body>
-  <div id="player-container">
-    <video id="video" muted playsinline autoplay controls></video>
-    <div id="overlay">🔈 Click to Unmute</div>
-  </div>
-
-<script>
-  const video = document.getElementById('video');
-  const overlay = document.getElementById('overlay');
-  const url = 'https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8';
-
-  function startPlayback() {
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function() {
-        video.play();
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = url;
-      video.play();
-    } else {
-      alert('Your browser does not support HLS playback.');
-    }
-  }
-
-  // Start playback muted immediately
-  startPlayback();
-
-  // On overlay click, unmute and hide overlay
-  overlay.addEventListener('click', () => {
-    video.muted = false;
-    overlay.style.display = 'none';
-    video.play();
-  });
-</script>
+  <iframe 
+    src="https://anym3u8player.com/tv/p.php?url=https%3A%2F%2Fsi.videoapne.to%2Fhls%2F%2Cbdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq%2C.urlset%2Fmaster.m3u8" 
+    allowfullscreen 
+    allow="autoplay; fullscreen; encrypted-media">
+  </iframe>
 </body>
 </html>
