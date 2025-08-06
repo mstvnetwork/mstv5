@@ -1,142 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Global Sync Iframe Player (Autoplay + Resume)</title>
+  <meta charset="UTF-8">
+  <title>Custom Video Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { margin: 0; font-family: sans-serif; background: #000; color: white; }
-    #player-container { width: 100%; height: 90vh; position: relative; }
-    iframe { width: 100%; height: 100%; border: none; display: none; }
-    #spinner {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      border: 6px solid #ccc;
-      border-top: 6px solid gold;
-      border-radius: 50%;
-      width: 50px; height: 50px;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: translate(-50%, -50%) rotate(0deg); }
-      100% { transform: translate(-50%, -50%) rotate(360deg); }
-    }
-    #banner {
-      background: royalblue;
-      white-space: nowrap;
-      overflow: hidden;
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      padding: 6px;
-    }
-    #banner span {
-      display: inline-block;
-      padding-left: 100%;
-      animation: scroll 15s linear infinite;
-    }
-    @keyframes scroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-    #overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.85);
-      color: white;
+    html, body {
+      margin: 0; padding: 0;
+      background: black;
+      height: 100%;
       display: flex;
-      align-items: center;
       justify-content: center;
-      z-index: 10;
-      font-size: 1.2em;
-      cursor: pointer;
+      align-items: center;
+    }
+    video {
+      width: 100%;
+      height: auto;
+      max-height: 100vh;
+      background: black;
     }
   </style>
 </head>
 <body>
-  <div id="player-container">
-    <div id="overlay" onclick="startPlayback()">▶️ Click to Start</div>
-    <div id="spinner"></div>
-    <iframe id="iframe-player" allow="autoplay; fullscreen"></iframe>
-  </div>
-  <div id="banner"><span>Loading playlist...</span></div>
+  <video id="videoPlayer" controls autoplay muted playsinline></video>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const ch = urlParams.get('ch') || '1';
-    const playlistUrl = `sync-ch${ch}.json`;
+    // Replace this with your actual direct video URL
+    const videoUrl = new URLSearchParams(location.search).get("https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8");
 
-    let playlist = null;
-    let start_time_utc = null;
-    let currentIndex = -1;
+    if (!videoUrl) {
+      document.body.innerHTML = "<p style='color:white;'>No video URL provided. Use ?src=VIDEO_URL</p>";
+    } else {
+      const video = document.getElementById("videoPlayer");
+      const source = document.createElement("source");
 
-    async function loadPlaylist() {
-      const res = await fetch(playlistUrl);
-      const json = await res.json();
-      playlist = json.video_list;
-      start_time_utc = Date.parse(json.start_time_utc);
-    }
+      source.src = videoUrl;
+      source.type = videoUrl.includes(".m3u8") ? "application/x-mpegURL" : "video/mp4";
 
-    function getCurrentSlot() {
-      const now = Date.now();
-      const elapsed = Math.floor((now - start_time_utc) / 1000);
-      const total = playlist.reduce((a, v) => a + v.duration_seconds, 0);
-      const position = elapsed % total;
-
-      let acc = 0;
-      for (let i = 0; i < playlist.length; i++) {
-        const v = playlist[i];
-        if (position < acc + v.duration_seconds) {
-          return { index: i, offset: position - acc };
-        }
-        acc += v.duration_seconds;
-      }
-      return { index: 0, offset: 0 };
-    }
-
-    function setBanner(text) {
-      document.getElementById('banner').innerHTML = `<span>${text}</span>`;
-    }
-
-    function playCurrentSlot() {
-      const { index, offset } = getCurrentSlot();
-      const video = playlist[index];
-
-      if (index === currentIndex && offset < 2) return; // Avoid reload if within same slot and not much has changed
-      currentIndex = index;
-
-      const iframe = document.getElementById('iframe-player');
-      const spinner = document.getElementById('spinner');
-      spinner.style.display = 'block';
-      iframe.style.display = 'none';
-
-      // Append autoplay and attempt to set "start" time (if the source supports it)
-      let autoplayUrl = video.url;
-      if (!autoplayUrl.includes("autoplay=1")) {
-        autoplayUrl += (autoplayUrl.includes("?") ? "&" : "?") + "autoplay=1";
-      }
-
-      // If source supports timestamp (e.g., YouTube or custom player), append it
-      if (autoplayUrl.includes("youtube.com/embed/") || autoplayUrl.includes("gdplayer.to")) {
-        autoplayUrl += `&start=${offset}`;
-      }
-
-      iframe.src = autoplayUrl;
-      setBanner(`Now Playing: ${video.title}`);
-
-      iframe.onload = () => {
-        spinner.style.display = 'none';
-        iframe.style.display = 'block';
-      };
-
-      const nextDelay = (video.duration_seconds - offset) * 1000;
-      setTimeout(playCurrentSlot, nextDelay);
-    }
-
-    async function startPlayback() {
-      document.getElementById("overlay").style.display = "none";
-      await loadPlaylist();
-      playCurrentSlot();
+      video.appendChild(source);
+      video.load();
+      video.play().catch(err => {
+        console.warn("Autoplay blocked:", err);
+      });
     }
   </script>
 </body>
