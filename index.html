@@ -2,21 +2,124 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>GDPlayer Embed</title>
+  <title>Global Sync Embed Player</title>
   <style>
     html, body {
       margin: 0;
-      height: 100%;
+      padding: 0;
       background: black;
+      height: 100%;
+      overflow: hidden;
+    }
+    #player-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
     }
     iframe {
       width: 100%;
       height: 100%;
       border: none;
     }
+    #scrolling-banner {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      background: blue;
+      color: white;
+      padding: 5px 0;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    #scrolling-banner span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll-left 20s linear infinite;
+    }
+    @keyframes scroll-left {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    #spinner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: gold;
+      font-size: 2em;
+    }
   </style>
 </head>
 <body>
-  <iframe src="https://gdplayer.to/embed/BDOHWYVH7BBOXUZVTA5P4GKWRKUMWZKROY3HCETGWKRA6QQ3LY6ZUQVO4XCQ" allowfullscreen></iframe>
+  <div id="player-container">
+    <div id="spinner">⏳ Loading...</div>
+    <iframe id="video-iframe" allowfullscreen></iframe>
+    <div id="scrolling-banner"><span id="banner-text"></span></div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const ch = urlParams.get('ch') || '1';
+    const jsonUrl = `sync-ch${ch}.json`;
+
+    let videoList = [];
+    let startTimeUTC = null;
+    let currentIndex = -1;
+
+    async function loadPlaylist() {
+      const res = await fetch(jsonUrl);
+      const data = await res.json();
+      videoList = data.video_list;
+      startTimeUTC = new Date(data.start_time_utc).getTime();
+      syncAndPlay();
+    }
+
+    function syncAndPlay() {
+      const nowUTC = Date.now();
+      let elapsed = Math.floor((nowUTC - startTimeUTC) / 1000);
+      if (elapsed < 0) elapsed = 0;
+
+      let total = 0;
+      for (let i = 0; i < videoList.length; i++) {
+        const vid = videoList[i];
+        if (elapsed < total + vid.duration_seconds) {
+          currentIndex = i;
+          const offset = elapsed - total;
+          playVideo(vid, offset);
+          break;
+        }
+        total += vid.duration_seconds;
+      }
+
+      if (currentIndex === -1) {
+        document.getElementById('spinner').innerText = '🎉 Playlist Ended';
+      }
+    }
+
+    function playVideo(vid, offset) {
+      const iframe = document.getElementById('video-iframe');
+      const banner = document.getElementById('banner-text');
+      const spinner = document.getElementById('spinner');
+
+      banner.innerText = `Now Playing: ${vid.title}`;
+      iframe.src = vid.url;
+      spinner.style.display = 'block';
+
+      iframe.onload = () => {
+        spinner.style.display = 'none';
+      };
+
+      setTimeout(() => {
+        currentIndex++;
+        if (currentIndex < videoList.length) {
+          playVideo(videoList[currentIndex], 0);
+        } else {
+          banner.innerText = '🎉 Playlist Finished';
+        }
+      }, (vid.duration_seconds - offset) * 1000);
+    }
+
+    loadPlaylist();
+  </script>
 </body>
 </html>
