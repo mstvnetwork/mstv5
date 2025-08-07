@@ -1,55 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Custom HLS Player</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GDPlayer Embed</title>
   <style>
     html, body {
-      margin: 0; padding: 0;
-      background: black;
+      margin: 0;
       height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    video {
-      width: 100%;
-      height: auto;
-      max-height: 100vh;
       background: black;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
     }
   </style>
 </head>
 <body>
-  <video id="videoPlayer" controls autoplay muted playsinline></video>
-
-  <!-- Include hls.js from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    const video = document.getElementById("videoPlayer");
-    const videoUrl = "https://si.videoapne.to/hls/,bdohwyvh7bboxuzvta5p4gkwrkumwzkroy3hcetgwkra6qq3ly6zuqvo4xcq,.urlset/master.m3u8";
-
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(videoUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function () {
-        video.play().catch(err => {
-          console.warn("Autoplay blocked:", err);
-        });
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // For Safari
-      video.src = videoUrl;
-      video.addEventListener('loadedmetadata', function () {
-        video.play().catch(err => {
-          console.warn("Autoplay blocked:", err);
-        });
-      });
-    } else {
-      document.body.innerHTML = "<p style='color:white;'>Your browser does not support HLS playback.</p>";
-    }
-  </script>
+  <iframe src="https://gdplayer.to/embed/BDOHWYVH7BBOXUZVTA5P4GKWRKUMWZKROY3HCETGWKRA6QQ3LY6ZUQVO4XCQ" allowfullscreen></iframe>
 </body>
 </html>
