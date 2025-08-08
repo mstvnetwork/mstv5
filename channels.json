@@ -1,8 +1,98 @@
-[
- {
-    "name": "MSTV DESI PLAY",
-    "url": "https://player.twitch.tv/?channel=aiodigital&parent=mstvnetwork.github.io",
-    "type": "iframe"
-  }
-]
+{
+  "start_time_utc": "2025-08-08T23:17:51Z",
+  "video_list": [
+  {
+      "title": "Anupama",
+      "url": "https://0x0.st/8FiD.mp4",
+      "duration_seconds": 1398.08
+    },
   
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8Fsv.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8FrR.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 2",
+      "url": "https://0x0.st/8Frh.mp4",
+      "duration_seconds": 599
+    },
+    {
+      "title": "Part 3",
+      "url": "https://0x0.st/8FrF.mp4",
+      "duration_seconds": 100
+    },
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8Fza.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 2",
+      "url": "https://0x0.st/8FzM.mp4#nsfw",
+      "duration_seconds": 599
+    },
+    {
+      "title": "Part 3",
+      "url": "https://0x0.st/8Fzu.mp4",
+      "duration_seconds": 99
+    },
+       {
+      "title": "Part 1",
+      "url": "https://0x0.st/8Fsv.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8FrR.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 2",
+      "url": "https://0x0.st/8Frh.mp4",
+      "duration_seconds": 599
+    },
+    {
+      "title": "Part 3",
+      "url": "https://0x0.st/8FrF.mp4",
+      "duration_seconds": 100
+    },
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8Fza.mp4",
+      "duration_seconds": 600
+    },
+    {
+      "title": "Part 2",
+      "url": "https://0x0.st/8FzM.mp4#nsfw",
+      "duration_seconds": 599
+    },
+    {
+      "title": "Part 3",
+      "url": "https://0x0.st/8Fzu.mp4",
+      "duration_seconds": 99
+    },
+    {
+      "title": "Part 1",
+      "url": "https://0x0.st/8Fi-.mp4",
+      "duration_seconds": 601
+    },
+    {
+      "title": "Part 2",
+      "url": "https://0x0.st/8Fi8.mp4",
+      "duration_seconds": 603
+    },
+    {
+      "title": "Part 3",
+      "url": "https://0x0.st/8FiP.mp4",
+      "duration_seconds": 95
+    }
+  ]
+}
+
+
