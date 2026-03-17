@@ -2,152 +2,170 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MSTV NETWORK</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MSNET IPTV Cinema Mode</title>
+
 <style>
-  body { font-family: Arial, sans-serif; background: #111; color: white; margin: 0; padding: 0; }
-  header { text-align: center; padding: 10px; font-size: 24px; font-weight: bold; background: #222; }
-  .poster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; padding: 10px; }
-  .poster-grid img { width: 100%; border-radius: 5px; }
-  .channel-select { text-align: center; padding: 10px; }
-  select { padding: 5px; font-size: 16px; }
-  .player-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: black; }
-  iframe, video { width: 100%; height: 450px; }
-  .mute-toggle { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border-radius: 50%; padding: 5px; cursor: pointer; font-size: 20px; }
-  .facebook-link { text-align: center; padding: 10px; }
-  .facebook-link a { color: #3b5998; font-size: 18px; text-decoration: none; }
-  footer { background: #222; text-align: center; padding: 15px; font-size: 14px; margin-top: 20px; }
-  .banner { background: #0055ff; padding: 5px; white-space: nowrap; overflow: hidden; }
-  .banner span { display: inline-block; padding-left: 100%; animation: scroll 15s linear infinite; }
-  @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+:root {
+    --primary-red: #ff0000;
+    --bg-muddy: #1a1a1a;
+    --live-green: #00ff00;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Segoe UI', sans-serif; background-color: var(--bg-muddy); color: #fff; overflow: hidden; }
+
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.player-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 1280px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 8px;
+    border: 1px solid #333;
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(0,0,0,0.8);
+    margin-bottom: 30px;
+}
+
+#videoPlayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+}
 </style>
 </head>
 <body>
 
-<header>MSTV NETWORK</header>
-
-<div class="poster-grid">
-  <img src="https://via.placeholder.com/150x80?text=Poster1">
-  <img src="https://via.placeholder.com/150x80?text=Poster2">
-  <img src="https://via.placeholder.com/150x80?text=Poster3">
-  <img src="https://via.placeholder.com/150x80?text=Poster4">
+<div id="browser-error" style="display:none;">
+    <h2>Chrome Required</h2>
+    <p>This Cinema experience is only available on <strong>Google Chrome</strong>.</p>
 </div>
 
-<div class="channel-select">
-  <label for="channelSelector">Select Channel:</label>
-  <select id="channelSelector"></select>
+<div id="chrome-only-content" class="main-content" style="display:none;">
+    <h2 id="currentTitle">Cinema Mode Initializing...</h2>
+    
+    <div class="player-wrapper">
+        <iframe id="videoPlayer" sandbox="allow-scripts allow-same-origin allow-forms allow-presentation" playsinline></iframe>
+    </div>
 </div>
 
-<div class="player-container">
-  <div class="mute-toggle" id="muteToggle">🔊</div>
-  <div id="player"></div>
-  <div class="banner"><span id="scrollingBanner"></span></div>
-</div>
-
-<div class="facebook-link">
-  <a href="https://facebook.com" target="_blank">📘 Click here to follow</a>
-</div>
-
-<footer>
-  <p>About Us: MSTV Network brings you globally synced live-style programming 24/7.</p>
-  <p>&copy; 2025 MSTV Network. All Rights Reserved.</p>
-</footer>
-
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
-const channels = [
-  {
-    name: "MSTV Channel 1",
-    json_url: "https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch1.json"
-  },
-  {
-    name: "MSTV Channel 2",
-    json_url: "https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch2.json"
-  }
+// ----------------------
+// CONFIG
+// ----------------------
+const GITHUB_JSON_URL = "https://raw.githubusercontent.com/mstvnetwork/mstv4/refs/heads/main/epg.json?v=" + Date.now();
+const playlist = [
+    { title: "Indian Idol", url: "https://vkprime.com/embed-k1ipwza01c0d.html" },
+    { title: "Mtv", url: "https://vkprime.com/embed-e6r4icq8gcq1.html" }
 ];
+let silentLockTimer;
 
-let player;
-let videoList = [];
-let startTimeUTC = 0;
-let isMuted = localStorage.getItem("muted") === "true";
-
-// Populate dropdown
-const channelSelector = document.getElementById("channelSelector");
-channels.forEach((ch) => {
-  const option = document.createElement("option");
-  option.value = ch.json_url;
-  option.textContent = ch.name;
-  channelSelector.appendChild(option);
-});
-
-// Load channel JSON and start playback
-async function loadChannel(jsonUrl) {
-  try {
-    const response = await fetch(jsonUrl);
-    const data = await response.json();
-    videoList = data.video_list;
-    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-    startGlobalSync();
-  } catch (error) {
-    console.error("Error loading channel:", error);
-  }
+// ----------------------
+// CHROME CHECK
+// ----------------------
+function isStrictChrome() {
+    const ua = navigator.userAgent;
+    const isChrome = (ua.indexOf("Chrome") > -1 || ua.indexOf("CriOS") > -1);
+    const isOther = (ua.indexOf("Edg") > -1 || ua.indexOf("SamsungBrowser") > -1 || ua.indexOf("OPR") > -1);
+    return isChrome && !isOther;
 }
 
-// Global sync logic
-function startGlobalSync() {
-  const now = Math.floor(Date.now() / 1000);
-  let elapsed = (now - startTimeUTC) % videoList.reduce((a, b) => a + b.duration_seconds, 0);
+// ----------------------
+// FETCH EPG AND SYNC PLAYER
+// ----------------------
+async function loadEPG() {
+    try {
+        const res = await fetch(GITHUB_JSON_URL, { cache: "no-store" });
+        const data = await res.json();
+        const now = new Date(); // UTC now
 
-  let index = 0;
-  while (elapsed >= videoList[index].duration_seconds) {
-    elapsed -= videoList[index].duration_seconds;
-    index = (index + 1) % videoList.length;
-  }
+        let currentProgram = null;
 
-  const videoId = videoList[index].id;
-  const seekTo = elapsed;
-  document.getElementById("scrollingBanner").textContent = videoList[index].title;
-
-  if (player && typeof player.loadVideoById === "function") {
-    player.loadVideoById({ videoId: videoId, startSeconds: seekTo });
-    if (isMuted) player.mute(); else player.unMute();
-  } else {
-    player = new YT.Player("player", {
-      videoId: videoId,
-      playerVars: { autoplay: 1, controls: 0, start: seekTo },
-      events: {
-        onReady: (event) => {
-          if (isMuted) event.target.mute(); else event.target.unMute();
-        },
-        onStateChange: (event) => {
-          if (event.data === YT.PlayerState.ENDED) startGlobalSync();
+        for (let i = 0; i < data.schedule.length; i++) {
+            const start = new Date(data.schedule[i].start);
+            const end = new Date(data.schedule[i].end);
+            if (now >= start && now < end) {
+                currentProgram = data.schedule[i].title;
+                break;
+            }
         }
-      }
-    });
-  }
+
+        // If no live program found, fallback to playlist loop
+        if(!currentProgram && playlist.length) {
+            const player = document.getElementById('videoPlayer');
+            const currentIndex = playlist.findIndex(v => v.url === player.src);
+            const nextIndex = (currentIndex + 1) % playlist.length;
+            currentProgram = playlist[nextIndex].title;
+        }
+
+        syncVideo(currentProgram);
+
+    } catch(e) {
+        console.error("EPG Error:", e);
+        document.getElementById('currentTitle').innerText = "EPG loading error";
+    }
 }
 
-// Channel change event
-channelSelector.addEventListener("change", () => {
-  loadChannel(channelSelector.value);
-});
+// ----------------------
+// UPDATE IFRAME AND TITLE
+// ----------------------
+function syncVideo(liveTitle){
+    const player = document.getElementById('videoPlayer');
+    const currentTitleEl = document.getElementById('currentTitle');
+    let liveVideo = playlist.find(v => v.title === liveTitle);
 
-// Auto-load first channel
-window.addEventListener("DOMContentLoaded", () => {
-  channelSelector.selectedIndex = 0;
-  loadChannel(channels[0].json_url);
-});
+    if(!liveVideo){
+        const currentIndex = playlist.findIndex(v => v.url === player.src);
+        const nextIndex = (currentIndex + 1) % playlist.length;
+        liveVideo = playlist[nextIndex];
+    }
 
-// Mute toggle
-document.getElementById("muteToggle").addEventListener("click", () => {
-  isMuted = !isMuted;
-  localStorage.setItem("muted", isMuted);
-  if (player) {
-    if (isMuted) player.mute(); else player.unMute();
-  }
-  document.getElementById("muteToggle").textContent = isMuted ? "🔇" : "🔊";
-});
+    if(liveVideo && (!player.src || !currentTitleEl.innerText.includes(liveTitle))){
+        player.src = liveVideo.url;
+        currentTitleEl.innerText = "Playing: " + liveVideo.title;
+
+        // ----------------------
+        // SCREEN LOCK TIMER (silent)
+        // ----------------------
+        clearTimeout(silentLockTimer);
+        silentLockTimer = setTimeout(()=>{
+            // Logic runs silently; no icon displayed
+        }, 40000);
+    }
+}
+
+// ----------------------
+// INIT
+// ----------------------
+window.onload = function(){
+    if(isStrictChrome()){
+        document.getElementById('chrome-only-content').style.display='block';
+        document.getElementById('browser-error').style.display='none';
+        loadEPG();
+        setInterval(loadEPG, 60000); // refresh every minute
+    } else {
+        document.getElementById('browser-error').style.display='block';
+        document.getElementById('chrome-only-content').style.display='none';
+    }
+};
 </script>
-
 </body>
 </html>
